@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Horario | Visualización</title>
+    <style>
+        :root {
+            --bg: #f3f7fb;
+            --paper: #ffffff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --accent: #0f766e;
+            --accent-2: #134e4a;
+            --line: #dbe4ee;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at top left, rgba(14, 116, 110, 0.12), transparent 25%),
+                linear-gradient(180deg, #f8fbff 0%, #eef4f8 100%);
+        }
+
+        .wrap {
+            width: min(1120px, 94vw);
+            margin: 28px auto;
+            padding: 24px;
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .hero h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3.4rem);
+            line-height: 1.05;
+        }
+
+        .hero p {
+            color: var(--muted);
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        }
+
+        .panel strong {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .metric {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            background: #fff;
+        }
+
+        .metric span {
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 1.35rem;
+        }
+
+        .views {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .view-card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+            background: #fff;
+        }
+
+        .view-card h2 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .view-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.45;
+            font-size: 0.92rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        .actions a {
+            text-decoration: none;
+            padding: 11px 15px;
+            border-radius: 12px;
+            font-weight: 700;
+            border: 1px solid var(--line);
+            color: var(--ink);
+        }
+
+        .actions a.primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #fff;
+            border: 0;
+        }
+
+        @media (max-width: 920px) {
+            .hero { grid-template-columns: 1fr; }
+            .metrics { grid-template-columns: 1fr; }
+            .views { grid-template-columns: 1fr 1fr; }
+        }
+
+        @media (max-width: 640px) {
+            .views { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap">
+        <section class="hero">
+            <div>
+                <h1>Control de presencia laboral con calendario, usuarios y exportación.</h1>
+                <p>
+                    Esta vista resume el sistema de visualización de la aplicación: acceso seguro,
+                    calendario semanal interactivo, panel de administración y salida oficial para
+                    inspección en PDF o Excel.
+                </p>
+                <div class="actions">
+                    <a class="primary" href="/login">Acceder al sistema</a>
+                    <a href="/report">Ver informe oficial</a>
+                </div>
+            </div>
+            <div class="panel">
+                <strong>Capacidades visuales</strong>
+                <div>Calendario por días con jornada y comida</div>
+                <div>Administración de usuarios con auditoría</div>
+                <div>Informe mensual imprimible</div>
+                <div>Integración con API REST y futura app móvil</div>
+            </div>
+        </section>
+
+        <section class="metrics">
+            <article class="metric">
+                <span>Regla legal</span>
+                <strong>40 h / semana</strong>
+            </article>
+            <article class="metric">
+                <span>Formato comida</span>
+                <strong>HH:MM</strong>
+            </article>
+            <article class="metric">
+                <span>Exportación</span>
+                <strong>PDF + Excel</strong>
+            </article>
+        </section>
+
+        <section class="views">
+            <article class="view-card">
+                <h2>Login</h2>
+                <p>Acceso autenticado con credenciales seguras y mensajes de validación.</p>
+            </article>
+            <article class="view-card">
+                <h2>Calendario</h2>
+                <p>Selección de día, visualización de jornada, comida, comentarios y horas extra.</p>
+            </article>
+            <article class="view-card">
+                <h2>Administración</h2>
+                <p>Alta, baja, reinicio de contraseña, vista de horas semanales y auditoría.</p>
+            </article>
+            <article class="view-card">
+                <h2>Informe</h2>
+                <p>Vista oficial para inspección, impresión y descarga en PDF o Excel.</p>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador</title>
+    <style>
+        body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
+        .wrap { width: min(1020px, 95vw); margin: 24px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+        .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .top a { color: #0f766e; text-decoration: none; font-weight: 700; }
+        .messages { margin: 10px 0; padding: 10px; border-radius: 10px; border: 1px solid #fed7aa; background: #fff7ed; color: #9a3412; }
+        form { display: grid; gap: 8px; max-width: 430px; }
+        input, select, button { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; }
+        button { border: 0; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+        .secondary { background: #1f2937; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { border: 1px solid #e5e7eb; text-align: left; padding: 10px; }
+        .inline { display: inline; }
+        .grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 18px; }
+        .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; }
+        .hint { color: #64748b; font-size: 0.9rem; }
+        .logs { max-height: 560px; overflow: auto; }
+        .log { border-bottom: 1px solid #e5e7eb; padding: 10px 0; }
+        .actions { display: grid; gap: 8px; }
+        .actions a { text-decoration: none; color: #0f766e; font-weight: 700; }
+        .small { font-size: 0.85rem; color: #64748b; }
+
+        @media (max-width: 980px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <h1>Panel de usuarios</h1>
+            <a href="{{ url_for('calendar') }}">Volver al calendario</a>
+        </div>
+
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="messages">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="grid">
+            <section class="card">
+                <h2>Alta de usuario</h2>
+                <p class="hint">La contraseña debe ser robusta: 10+ caracteres, mayúscula, minúscula, número y símbolo.</p>
+                <form method="POST" action="{{ url_for('admin_users') }}">
+                    <input type="text" name="username" placeholder="Usuario" required>
+                    <input type="password" name="password" placeholder="Password segura" required>
+                    <select name="role" required>
+                        <option value="employee" selected>Empleado</option>
+                        <option value="admin">Administrador</option>
+                    </select>
+                    <button type="submit">Crear usuario</button>
+                </form>
+
+                <h2>Altas y bajas</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Horas semana</th>
+                            <th>Estado</th>
+                            <th>Accion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td>{{ user.role }}</td>
+                                <td>{{ weekly_totals[user.id] }} h</td>
+                                <td>{% if user.active %}Activo{% else %}Inactivo{% endif %}</td>
+                                <td>
+                                    <div class="actions">
+                                        <a href="{{ url_for('calendar', user_id=user.id) }}">Abrir calendario</a>
+                                        <a href="{{ url_for('report', user_id=user.id) }}">Abrir informe</a>
+
+                                        {% if user.id != current_user.id %}
+                                            <form method="POST" action="{{ url_for('toggle_user', user_id=user.id) }}">
+                                                <input type="text" name="change_reason" placeholder="Motivo de alta/baja" required>
+                                                <button type="submit">{% if user.active %}Dar de baja{% else %}Dar de alta{% endif %}</button>
+                                            </form>
+
+                                            <form method="POST" action="{{ url_for('reset_user_password', user_id=user.id) }}">
+                                                <input type="password" name="new_password" placeholder="Nueva contraseña segura" required>
+                                                <input type="text" name="change_reason" placeholder="Motivo del reinicio" required>
+                                                <button type="submit" class="secondary">Reiniciar contraseña</button>
+                                            </form>
+                                        {% else %}
+                                            <span class="small">Sesión actual</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+
+            <aside class="card logs">
+                <h2>Auditoría reciente</h2>
+                {% for log in audit_logs %}
+                    <div class="log">
+                        <strong>{{ log.action }}</strong> sobre {{ log.entity_type }} #{{ log.entity_id or '-' }}<br>
+                        <span class="hint">Actor {{ log.actor_user.username if log.actor_user else log.actor_user_id }} | {{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</span><br>
+                        <span>Causa: {{ log.reason }}</span><br>
+                        <span class="hint">{{ log.details }}</span>
+                    </div>
+                {% else %}
+                    <p>No hay movimientos auditados todavía.</p>
+                {% endfor %}
+            </aside>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario | Control de Presencia</title>
+    <style>
+        :root {
+            --bg: #f4f7fb;
+            --panel: #ffffff;
+            --line: #e5e7eb;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --accent: #0f766e;
+            --accent-2: #134e4a;
+            --warn: #b45309;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--ink);
+            background: radial-gradient(circle at 0 0, #dbeafe 0%, transparent 30%), #f8fafc;
+        }
+
+        .shell {
+            width: min(1220px, 95vw);
+            margin: 22px auto;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 14px 38px rgba(2, 6, 23, 0.1);
+        }
+
+        .topbar {
+            background: #111827;
+            color: #fff;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .topbar a {
+            color: #fff;
+            text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            padding: 8px 12px;
+            border-radius: 10px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+            background: #fff;
+        }
+
+        .messages {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(100px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .day {
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #f8fafc;
+            text-align: left;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .day.active {
+            border-color: var(--accent);
+            box-shadow: inset 0 0 0 2px var(--accent);
+            background: #ecfeff;
+        }
+
+        .day.has-entry {
+            background: #eefbf6;
+            border-color: #86efac;
+        }
+
+        .day.has-overtime {
+            background: #fff7ed;
+            border-color: #fdba74;
+        }
+
+        .day.is-validated {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+
+        .entry {
+            border-left: 4px solid #60a5fa;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .summary-item {
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .summary-item strong {
+            display: block;
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .meta { color: var(--muted); font-size: 0.92rem; }
+
+        .warning { color: var(--warn); font-weight: 700; }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .soft {
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 14px;
+        }
+
+        .hint {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        form { display: grid; gap: 10px; }
+
+        input, select, textarea, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+            color: #fff;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            cursor: pointer;
+        }
+
+        @media (max-width: 980px) {
+            .grid { grid-template-columns: 1fr; }
+            .days { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+            .split { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <div>
+                <strong>Control de Presencia</strong><br>
+                Usuario conectado: {{ current_user.username }}
+                {% if selected_user %}| Vista: {{ selected_user.username }}{% endif %}
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a href="{{ url_for('report') }}">Vista oficial</a>
+                {% if current_user.is_admin %}
+                    <a href="{{ url_for('admin_users') }}">Panel admin</a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}">Salir</a>
+            </div>
+        </header>
+
+        <section class="grid">
+            <article class="card">
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="messages">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% if current_user.is_admin %}
+                    <form method="GET" action="{{ url_for('calendar') }}" style="margin-bottom: 12px;">
+                        <label for="user_id">Empleado</label>
+                        <select id="user_id" name="user_id" onchange="this.form.submit()">
+                            {% for user in users %}
+                                <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>
+                                    {{ user.username }} {% if not user.active %}(inactivo){% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="day" value="{{ selected_day.isoformat() }}">
+                    </form>
+                {% endif %}
+
+                <h2>Resumen semanal</h2>
+                <p>Total semana: <strong>{{ weekly_total }} h</strong> / {{ max_weekly_hours }} h</p>
+                <div class="days">
+                    {% for day in days %}
+                        {% set day_entry = entries_by_day[day][0] if entries_by_day[day] else None %}
+                        <button
+                            class="day {% if day == selected_day %}active{% endif %}{% if day_entry %} has-entry{% endif %}{% if day_entry and overtime_hours(day_entry) > 0 %} has-overtime{% endif %}{% if day_entry and day_entry.overtime_validated %} is-validated{% endif %}"
+                            type="button"
+                            data-day="{{ day.isoformat() }}"
+                            data-label="{{ day.strftime('%A %d/%m/%Y') }}"
+                            data-total="{{ daily_totals[day] }}"
+                            data-has-entry="{{ 'true' if day_entry else 'false' }}"
+                            data-check-in="{{ day_entry.check_in.strftime('%H:%M') if day_entry else '' }}"
+                            data-check-out="{{ day_entry.check_out.strftime('%H:%M') if day_entry else '' }}"
+                            data-meal-start="{{ day_entry.meal_start.strftime('%H:%M') if day_entry and day_entry.meal_start else '' }}"
+                            data-meal-end="{{ day_entry.meal_end.strftime('%H:%M') if day_entry and day_entry.meal_end else '' }}"
+                            data-meal-hours="{{ '%.2f'|format(meal_hours(day_entry)) if day_entry else '0.00' }}"
+                            data-worked-hours="{{ '%.2f'|format(worked_hours(day_entry)) if day_entry else '0.00' }}"
+                            data-overtime-hours="{{ '%.2f'|format(overtime_hours(day_entry)) if day_entry else '0.00' }}"
+                            data-comments="{{ (day_entry.comments or 'Sin comentarios') if day_entry else 'Sin registro en este día' }}"
+                            data-validated="{{ 'true' if day_entry and day_entry.overtime_validated else 'false' }}"
+                        >
+                            <strong>{{ day.strftime('%a %d/%m') }}</strong>
+                            Horas: {{ daily_totals[day] }}
+                        </button>
+                    {% endfor %}
+                </div>
+
+                <div class="entry" id="calendar-day-summary" style="margin-top:16px;">
+                    <h3 id="calendar-selected-day">Detalle {{ selected_day.strftime('%d/%m/%Y') }}</h3>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <strong>Inicio / Fin jornada</strong>
+                            <span id="summary-work-range">
+                                {% if selected_entry %}
+                                    {{ selected_entry.check_in.strftime('%H:%M') }} - {{ selected_entry.check_out.strftime('%H:%M') }}
+                                {% else %}
+                                    Sin registro
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Comida</strong>
+                            <span id="summary-meal-range">
+                                {% if selected_entry and selected_entry.meal_start and selected_entry.meal_end %}
+                                    {{ selected_entry.meal_start.strftime('%H:%M') }} - {{ selected_entry.meal_end.strftime('%H:%M') }}
+                                {% else %}
+                                    Sin tramo de comida
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Horas de comida</strong>
+                            <span id="summary-meal-hours">
+                                {% if selected_entry %}
+                                    {{ '%.2f'|format(meal_hours(selected_entry)) }} h
+                                {% else %}
+                                    0.00 h
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="summary-item">
+                            <strong>Horas netas</strong>
+                            <span id="summary-worked-hours">
+                                {% if selected_entry %}
+                                    {{ '%.2f'|format(worked_hours(selected_entry)) }} h
+                                {% else %}
+                                    0.00 h
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <p style="margin-top:12px;"><strong>Comentarios:</strong> <span id="summary-comments">{{ selected_entry.comments or 'Sin comentarios' if selected_entry else 'Sin registro en este día' }}</span></p>
+                    <p id="summary-overtime" class="{% if selected_entry and overtime_hours(selected_entry) > 0 %}warning{% else %}meta{% endif %}">
+                        {% if selected_entry and overtime_hours(selected_entry) > 0 %}
+                            Horas extra: {{ '%.2f'|format(overtime_hours(selected_entry)) }} h{% if selected_entry.overtime_validated %} | Validadas{% endif %}
+                        {% elif selected_entry %}
+                            No hay horas extra registradas.
+                        {% else %}
+                            No existe registro en este día.
+                        {% endif %}
+                    </p>
+                </div>
+
+                {% for item in entries_by_day[selected_day] %}
+                    {% if overtime_hours(item) > 0 and current_user.is_admin and not item.overtime_validated %}
+                        <form method="POST" action="{{ url_for('validate_overtime', entry_id=item.id) }}" style="margin-top:8px;">
+                            <button type="submit">Validar horas extra</button>
+                        </form>
+                    {% endif %}
+                {% endfor %}
+
+                {% if selected_entry and allow_entry_edit %}
+                    <div class="soft" id="edit-entry-panel">
+                        <h3>Modificar registro actual</h3>
+                        <p class="meta">La modificación queda auditada y exige informar la causa.</p>
+                        <form method="POST" action="{{ url_for('update_entry', entry_id=selected_entry.id) }}" id="edit-entry-form">
+                            <div class="split">
+                                <div>
+                                    <label for="edit_check_in">Entrada</label>
+                                    <input id="edit_check_in" type="time" name="check_in" value="{{ selected_entry.check_in.strftime('%H:%M') }}" required>
+                                </div>
+                                <div>
+                                    <label for="edit_check_out">Salida</label>
+                                    <input id="edit_check_out" type="time" name="check_out" value="{{ selected_entry.check_out.strftime('%H:%M') }}" required>
+                                </div>
+                            </div>
+                            <div class="split">
+                                <div>
+                                    <label for="edit_meal_start">Inicio comida</label>
+                                    <input id="edit_meal_start" type="time" name="meal_start" value="{{ selected_entry.meal_start.strftime('%H:%M') if selected_entry.meal_start else '' }}">
+                                </div>
+                                <div>
+                                    <label for="edit_meal_end">Fin comida</label>
+                                    <input id="edit_meal_end" type="time" name="meal_end" value="{{ selected_entry.meal_end.strftime('%H:%M') if selected_entry.meal_end else '' }}">
+                                </div>
+                            </div>
+                            <label for="edit_comments">Comentarios</label>
+                            <textarea id="edit_comments" name="comments" rows="3">{{ selected_entry.comments or '' }}</textarea>
+                            <label for="change_reason">Causa del cambio</label>
+                            <textarea id="change_reason" name="change_reason" rows="2" placeholder="Explica por qué se modifica el dato" required></textarea>
+                            <button type="submit">Guardar modificación</button>
+                        </form>
+                    </div>
+                {% endif %}
+
+                <div class="soft" id="edit-entry-panel-empty" {% if selected_entry and allow_entry_edit %}style="display:none;"{% endif %}>
+                    <h3>Modificar registro actual</h3>
+                    <p class="meta">Selecciona un día editable con registro para poder modificarlo con causa.</p>
+                </div>
+            </article>
+
+            <aside class="card">
+                <h2>Nuevo registro</h2>
+                <p class="meta">Empleado: solo puede crear su dia actual. Sin edicion ni borrado historico.</p>
+
+                <form method="POST" action="{{ url_for('add_entry') }}">
+                    {% if current_user.is_admin %}
+                        <label for="entry_user">Empleado</label>
+                        <select id="entry_user" name="user_id" required>
+                            {% for user in users %}
+                                <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    {% endif %}
+
+                    <label for="work_date">Fecha</label>
+                    <input id="work_date" type="date" name="work_date" value="{{ selected_day.isoformat() }}" required>
+
+                    <label for="check_in">Entrada</label>
+                    <input id="check_in" type="time" name="check_in" required>
+
+                    <label for="meal_start">Inicio comida</label>
+                    <input id="meal_start" type="time" name="meal_start">
+
+                    <label for="meal_end">Fin comida</label>
+                    <input id="meal_end" type="time" name="meal_end">
+
+                    <label for="check_out">Salida</label>
+                    <input id="check_out" type="time" name="check_out" required>
+
+                    <label for="comments">Comentarios</label>
+                    <textarea id="comments" name="comments" rows="4" placeholder="Observaciones del dia"></textarea>
+
+                    <button type="submit">Guardar jornada</button>
+                </form>
+
+                <div class="soft">
+                    <h3>Cambiar contraseña</h3>
+                    <p class="hint">Debe tener al menos 10 caracteres, mayúscula, minúscula, número y símbolo.</p>
+                    <form method="POST" action="{{ url_for('change_password') }}">
+                        <label for="current_password">Contraseña actual</label>
+                        <input id="current_password" type="password" name="current_password" required>
+
+                        <label for="new_password">Nueva contraseña</label>
+                        <input id="new_password" type="password" name="new_password" required>
+
+                        <label for="confirm_password">Repetir nueva contraseña</label>
+                        <input id="confirm_password" type="password" name="confirm_password" required>
+
+                        <label for="password_reason">Motivo del cambio</label>
+                        <input id="password_reason" type="text" name="change_reason" value="Actualización de contraseña" required>
+
+                        <button type="submit">Actualizar contraseña</button>
+                    </form>
+                </div>
+            </aside>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+</body>
+</html>

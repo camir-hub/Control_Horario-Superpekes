@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Oficial</title>
+    <style>
+        body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
+        .wrap { width: min(1120px, 95vw); margin: 24px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
+        .bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .bar a { text-decoration: none; color: #0f766e; font-weight: 700; }
+        form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+        input, select, button { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; }
+        button { border: 0; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #e5e7eb; padding: 9px; text-align: left; }
+        .total { margin-top: 12px; font-weight: 700; }
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        @media print {
+            .no-print { display: none; }
+            .wrap { border: 0; box-shadow: none; width: 100%; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <main class="wrap">
+        <div class="bar no-print">
+            <h1>Informe mensual oficial</h1>
+            <div class="actions">
+                <a href="{{ url_for('calendar') }}">Volver</a>
+                <button type="button" onclick="window.print()">Imprimir</button>
+                <a href="{{ url_for('report_pdf', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar PDF</a>
+                <a href="{{ url_for('report_excel', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar Excel</a>
+            </div>
+        </div>
+
+        <p>
+            Empleado: <strong>{{ selected_user.username if selected_user else 'N/D' }}</strong>
+            | Mes: <strong>{{ month }}</strong>
+        </p>
+
+        <form method="GET" action="{{ url_for('report') }}" class="no-print">
+            <label for="month">Mes</label>
+            <input id="month" type="month" name="month" value="{{ month }}">
+
+            {% if current_user.is_admin %}
+                <label for="user_id">Empleado</label>
+                <select id="user_id" name="user_id">
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            {% endif %}
+
+            <button type="submit">Consultar</button>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Entrada</th>
+                    <th>Inicio comida</th>
+                    <th>Fin comida</th>
+                    <th>Salida</th>
+                    <th>Horas comida</th>
+                    <th>Horas netas</th>
+                    <th>Horas extra</th>
+                    <th>Validadas</th>
+                    <th>Comentarios</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in entries %}
+                    <tr>
+                        <td>{{ item.work_date }}</td>
+                        <td>{{ item.check_in }}</td>
+                        <td>{{ item.meal_start or '-' }}</td>
+                        <td>{{ item.meal_end or '-' }}</td>
+                        <td>{{ item.check_out }}</td>
+                        <td>{{ '%.2f'|format(meal_hours(item)) }}</td>
+                        <td>{{ '%.2f'|format(worked_hours(item)) }}</td>
+                        <td>{{ '%.2f'|format(overtime_hours(item)) }}</td>
+                        <td>{% if item.overtime_validated %}SI{% else %}NO{% endif %}</td>
+                        <td>{{ item.comments or '-' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p class="total">Total de horas del mes: {{ total }}</p>
+    </main>
+</body>
+</html>
