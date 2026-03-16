@@ -4,6 +4,10 @@ import re
 from datetime import date, datetime, timedelta
 from functools import wraps
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from flask import (
     Flask,
     flash,
@@ -140,11 +144,6 @@ def week_bounds(day_value):
     return week_start, week_start + timedelta(days=6)
 
 
-def week_days(day_value):
-    start, _ = week_bounds(day_value)
-    return [start + timedelta(days=i) for i in range(7)]
-
-
 def weekly_hours_for_user(user_id, day_value):
     start, end = week_bounds(day_value)
     entries = TimeEntry.query.filter(
@@ -153,6 +152,31 @@ def weekly_hours_for_user(user_id, day_value):
         TimeEntry.work_date <= end,
     ).all()
     return round(sum(worked_hours(item) for item in entries), 2)
+
+
+def weekly_breakdown_for_user(user_id, day_value):
+    start, end = week_bounds(day_value)
+    entries = TimeEntry.query.filter(
+        TimeEntry.user_id == user_id,
+        TimeEntry.work_date >= start,
+        TimeEntry.work_date <= end,
+    ).all()
+
+    effective_hours = round(sum(worked_hours(item) for item in entries), 2)
+    pause_hours = round(sum(meal_hours(item) for item in entries), 2)
+    overtime_total = round(sum(overtime_hours(item) for item in entries), 2)
+    remaining_hours = round(max(0.0, MAX_WEEKLY_HOURS - effective_hours), 2)
+    over_limit_hours = round(max(0.0, effective_hours - MAX_WEEKLY_HOURS), 2)
+
+    return {
+        "week_start": start,
+        "week_end": end,
+        "effective_hours": effective_hours,
+        "pause_hours": pause_hours,
+        "overtime_hours": overtime_total,
+        "remaining_hours": remaining_hours,
+        "over_limit_hours": over_limit_hours,
+    }
 
 
 def validate_password_strength(password):
@@ -339,6 +363,8 @@ def ensure_default_admin():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("calendar"))
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -348,9 +374,41 @@ def login():
             login_user(user)
             return redirect(url_for("calendar"))
 
-        flash("Credenciales invalidas o usuario inactivo")
+        flash("Credenciales inválidas o usuario inactivo", "login")
 
-    return render_template("login.html")
+    return render_template("login.html", mode="login")
+
+
+@app.route("/register", methods=["POST"])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for("calendar"))
+
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if not username or not password:
+        flash("Usuario y contraseña son obligatorios", "register")
+    elif len(password) < 8:
+        flash("La contraseña debe tener al menos 8 caracteres", "register")
+    elif password != confirm:
+        flash("Las contraseñas no coinciden", "register")
+    elif User.query.filter_by(username=username).first():
+        flash("Ese nombre de usuario ya está en uso", "register")
+    else:
+        new_user = User(
+            username=username,
+            password_hash=generate_password_hash(password),
+            role="employee",
+            active=True,
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        login_user(new_user)
+        return redirect(url_for("calendar"))
+
+    return render_template("login.html", mode="register")
 
 
 @app.route("/logout")
@@ -381,85 +439,76 @@ def calendar():
             except ValueError:
                 flash("Empleado invalido")
 
-    days = week_days(day_value)
+    # Monthly bounds
+    month_start = day_value.replace(day=1)
+    if month_start.month == 12:
+        month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+    else:
+        month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
+
     selected_user = db.session.get(User, selected_user_id)
 
     entries = (
         TimeEntry.query.filter(
             TimeEntry.user_id == selected_user_id,
-            TimeEntry.work_date >= days[0],
-            TimeEntry.work_date <= days[-1],
+            TimeEntry.work_date >= month_start,
+            TimeEntry.work_date <= month_end,
         )
         .order_by(TimeEntry.work_date.asc())
         .all()
     )
 
-    entries_by_day = {day_item: [] for day_item in days}
+    entries_by_day_map = {}
     for item in entries:
-        entries_by_day[item.work_date].append(item)
+        entries_by_day_map.setdefault(item.work_date, []).append(item)
 
-    selected_entry = entries_by_day[day_value][0] if entries_by_day[day_value] else None
+    # Build dict for JS calendar rendering
+    month_entries_dict = {}
+    for d, day_entries in entries_by_day_map.items():
+        entry = day_entries[0]
+        month_entries_dict[d.isoformat()] = {
+            "id": entry.id,
+            "check_in": entry.check_in.strftime("%H:%M") if entry.check_in else "",
+            "check_out": entry.check_out.strftime("%H:%M") if entry.check_out else "",
+            "meal_start": entry.meal_start.strftime("%H:%M") if entry.meal_start else "",
+            "meal_end": entry.meal_end.strftime("%H:%M") if entry.meal_end else "",
+            "meal_hours": round(meal_hours(entry), 2),
+            "worked_hours": round(worked_hours(entry), 2),
+            "overtime_hours": round(overtime_hours(entry), 2),
+            "overtime_validated": bool(entry.overtime_validated),
+            "comments": entry.comments or "",
+            "editable": can_edit_entry(current_user, entry),
+        }
 
-    daily_totals = {day_item: round(sum(worked_hours(item) for item in entries_by_day[day_item]), 2) for day_item in days}
-    weekly_total = round(sum(daily_totals.values()), 2)
+    selected_entry = entries_by_day_map.get(day_value, [None])[0]
+
+    # Weekly metrics for the week containing selected day (across month boundaries)
+    weekly_stats = weekly_breakdown_for_user(selected_user_id, day_value)
+
     allow_entry_edit = bool(selected_entry and can_edit_entry(current_user, selected_entry))
 
     return render_template(
         "calendar.html",
-        days=days,
+        month_start=month_start,
+        month_end=month_end,
         selected_day=day_value,
         selected_user=selected_user,
         users=users,
-        entries_by_day=entries_by_day,
         selected_entry=selected_entry,
         allow_entry_edit=allow_entry_edit,
-        daily_totals=daily_totals,
-        weekly_total=weekly_total,
+        weekly_total=weekly_stats["effective_hours"],
+        weekly_pause_total=weekly_stats["pause_hours"],
+        weekly_overtime_total=weekly_stats["overtime_hours"],
+        weekly_remaining_hours=weekly_stats["remaining_hours"],
+        weekly_over_limit_hours=weekly_stats["over_limit_hours"],
+        week_start=weekly_stats["week_start"],
+        week_end=weekly_stats["week_end"],
         max_weekly_hours=MAX_WEEKLY_HOURS,
         today=date.today(),
         worked_hours=worked_hours,
         overtime_hours=overtime_hours,
         meal_hours=meal_hours,
-    )
-
-
-@app.get("/calendar/day-data")
-@login_required
-def calendar_day_data():
-    day_raw = request.args.get("day")
-    if not day_raw:
-        return jsonify({"error": "Debe indicar day con formato YYYY-MM-DD"}), 400
-
-    try:
-        day_value = parse_iso_date(day_raw)
-    except ValueError:
-        return jsonify({"error": "Fecha inválida"}), 400
-
-    selected_user_id = current_user.id
-    if current_user.is_admin and request.args.get("user_id"):
-        try:
-            selected_user_id = int(request.args["user_id"])
-        except ValueError:
-            return jsonify({"error": "Empleado inválido"}), 400
-
-    entries = (
-        TimeEntry.query.filter(
-            TimeEntry.user_id == selected_user_id,
-            TimeEntry.work_date == day_value,
-        )
-        .order_by(TimeEntry.created_at.asc())
-        .all()
-    )
-
-    entry = entries[0] if entries else None
-    return jsonify(
-        {
-            "day": day_value.isoformat(),
-            "label": day_value.strftime("%A %d/%m/%Y"),
-            "user_id": selected_user_id,
-            "has_entry": bool(entry),
-            "entry": serialize_entry(entry) if entry else None,
-        }
+        month_entries_dict=month_entries_dict,
     )
 
 
@@ -506,7 +555,7 @@ def add_entry():
 
     projected = weekly_hours_for_user(target_user_id, normalized["work_date"]) + worked_hours(candidate)
     if projected > MAX_WEEKLY_HOURS:
-        flash("No puedes superar 40 horas semanales")
+        flash("No puedes superar 40 horas efectivas semanales")
         return redirect(url_for("calendar", user_id=target_user_id, day=normalized["work_date"].isoformat()))
 
     db.session.add(candidate)
@@ -570,7 +619,7 @@ def update_entry(entry_id):
     )
     projected = original_week_hours + worked_hours(updated_candidate)
     if projected > MAX_WEEKLY_HOURS:
-        flash("La modificación supera 40 horas semanales")
+        flash("La modificación supera 40 horas efectivas semanales")
         return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
     previous = serialize_entry(entry)
@@ -594,47 +643,6 @@ def update_entry(entry_id):
     db.session.commit()
     flash("Registro actualizado con traza de auditoría")
     return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
-
-
-@app.route("/account/password", methods=["POST"])
-@login_required
-def change_password():
-    current_password = request.form.get("current_password", "")
-    new_password = request.form.get("new_password", "")
-    confirm_password = request.form.get("confirm_password", "")
-    reason = request.form.get("change_reason", "Actualización de contraseña")
-
-    if not check_password_hash(current_user.password_hash, current_password):
-        flash("La contraseña actual no es correcta")
-        return redirect(url_for("calendar"))
-
-    if new_password != confirm_password:
-        flash("La nueva contraseña y su confirmación no coinciden")
-        return redirect(url_for("calendar"))
-
-    password_error = validate_password_strength(new_password)
-    if password_error:
-        flash(password_error)
-        return redirect(url_for("calendar"))
-
-    reason_error = change_reason_required(reason)
-    if reason_error:
-        flash(reason_error)
-        return redirect(url_for("calendar"))
-
-    current_user.password_hash = generate_password_hash(new_password)
-    create_audit_log(
-        actor_user_id=current_user.id,
-        target_user_id=current_user.id,
-        entity_type="user",
-        entity_id=current_user.id,
-        action="password_change",
-        reason=reason,
-        details="Contraseña actualizada por el propio usuario",
-    )
-    db.session.commit()
-    flash("Contraseña actualizada")
-    return redirect(url_for("calendar"))
 
 
 @app.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
@@ -789,13 +797,84 @@ def validate_overtime(entry_id):
         entity_type="time_entry",
         entity_id=entry.id,
         action="validate_overtime",
-        reason="Validación administrativa de horas extra",
-        details=f"Horas extra validadas: {overtime_hours(entry):.2f}",
+        reason="Validación administrativa del registro",
+        details=f"Registro validado. Horas extra detectadas: {overtime_hours(entry):.2f}",
     )
     db.session.commit()
-    flash("Horas validadas")
+    flash("Registro validado")
 
     return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
+
+
+@app.route("/admin/validate-month", methods=["POST"])
+@login_required
+def validate_month_entries():
+    if not current_user.is_admin:
+        flash("Acceso denegado")
+        return redirect(url_for("calendar"))
+
+    month = (request.form.get("month") or "").strip()
+    day_ref = (request.form.get("day") or date.today().isoformat()).strip()
+    user_id_raw = (request.form.get("user_id") or "").strip()
+
+    try:
+        month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
+    except ValueError:
+        flash("Mes invalido")
+        return redirect(url_for("calendar"))
+
+    try:
+        selected_day = parse_iso_date(day_ref)
+    except ValueError:
+        selected_day = month_start
+
+    try:
+        target_user_id = int(user_id_raw)
+    except ValueError:
+        flash("Empleado invalido")
+        return redirect(url_for("calendar", day=selected_day.isoformat()))
+
+    target_user = db.session.get(User, target_user_id)
+    if not target_user:
+        flash("Usuario no encontrado")
+        return redirect(url_for("calendar", day=selected_day.isoformat()))
+
+    if month_start.month == 12:
+        month_end_exclusive = month_start.replace(year=month_start.year + 1, month=1, day=1)
+    else:
+        month_end_exclusive = month_start.replace(month=month_start.month + 1, day=1)
+
+    entries = (
+        TimeEntry.query.filter(
+            TimeEntry.user_id == target_user_id,
+            TimeEntry.work_date >= month_start,
+            TimeEntry.work_date < month_end_exclusive,
+            TimeEntry.overtime_validated.is_(False),
+        )
+        .order_by(TimeEntry.work_date.asc())
+        .all()
+    )
+
+    if not entries:
+        flash("No hay registros pendientes de validacion en este mes")
+        return redirect(url_for("calendar", user_id=target_user_id, day=selected_day.isoformat()))
+
+    validated_count = 0
+    for entry in entries:
+        entry.overtime_validated = True
+        validated_count += 1
+
+    create_audit_log(
+        actor_user_id=current_user.id,
+        target_user_id=target_user_id,
+        entity_type="time_entry",
+        action="validate_overtime_bulk",
+        reason="Validacion administrativa masiva",
+        details=f"Validados {validated_count} registros del mes {month} para {target_user.username}",
+    )
+    db.session.commit()
+    flash(f"Se validaron {validated_count} registros del mes")
+    return redirect(url_for("calendar", user_id=target_user_id, day=selected_day.isoformat()))
 
 
 @app.route("/report")
@@ -1167,7 +1246,7 @@ def api_entries_create():
 
     projected = weekly_hours_for_user(target_user_id, normalized["work_date"]) + worked_hours(candidate)
     if projected > MAX_WEEKLY_HOURS:
-        return jsonify({"error": "No se puede superar 40 horas semanales"}), 422
+        return jsonify({"error": "No se puede superar 40 horas efectivas semanales"}), 422
 
     db.session.add(candidate)
     db.session.flush()
@@ -1225,7 +1304,7 @@ def api_entry_update(entry_id):
     )
     projected = original_week_hours + worked_hours(updated_candidate)
     if projected > MAX_WEEKLY_HOURS:
-        return jsonify({"error": "La modificación supera 40 horas semanales"}), 422
+        return jsonify({"error": "La modificación supera 40 horas efectivas semanales"}), 422
 
     previous = serialize_entry(entry)
     entry.check_in = normalized["check_in"]
@@ -1263,8 +1342,8 @@ def api_entry_validate(entry_id):
         entity_type="time_entry",
         entity_id=entry.id,
         action="validate_overtime",
-        reason="Validación administrativa desde API",
-        details=f"Horas extra validadas: {overtime_hours(entry):.2f}",
+        reason="Validación administrativa del registro desde API",
+        details=f"Registro validado desde API. Horas extra detectadas: {overtime_hours(entry):.2f}",
     )
     db.session.commit()
     return jsonify({"id": entry.id, "overtime_validated": entry.overtime_validated})

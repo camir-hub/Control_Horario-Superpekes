@@ -40,14 +40,35 @@
 			border: 1px solid #e5e7eb;
 		}
 
-		h1 {
-			margin: 0 0 8px;
-			font-size: 1.6rem;
+		h1 { margin: 0 0 20px; font-size: 1.6rem; }
+
+		.tabs {
+			display: flex;
+			background: #f3f4f6;
+			border-radius: 10px;
+			padding: 4px;
+			margin-bottom: 20px;
+			gap: 4px;
 		}
 
-		p {
-			margin: 0 0 20px;
+		.tab-btn {
+			flex: 1;
+			padding: 9px;
+			border: none;
+			border-radius: 8px;
+			font-size: 0.95rem;
+			font-weight: 600;
+			cursor: pointer;
+			background: transparent;
 			color: var(--muted);
+			transition: all 0.2s;
+			width: auto;
+		}
+
+		.tab-btn.active {
+			background: #fff;
+			color: var(--accent);
+			box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 		}
 
 		label {
@@ -71,7 +92,7 @@
 			box-shadow: 0 0 0 3px var(--ring);
 		}
 
-		button {
+		button[type="submit"] {
 			width: 100%;
 			border: 0;
 			border-radius: 10px;
@@ -83,38 +104,80 @@
 			background: linear-gradient(135deg, var(--accent), var(--accent-2));
 		}
 
-		.messages {
+		.panel { display: none; }
+		.panel.active { display: block; }
+
+		.alert {
 			margin: 0 0 14px;
 			padding: 10px 12px;
 			border-radius: 10px;
 			border: 1px solid #fecaca;
 			background: #fef2f2;
 			color: #991b1b;
+			font-size: 0.92rem;
 		}
 	</style>
 </head>
 <body>
 	<main class="card">
 		<h1>Control Horario</h1>
-		<p>Accede con tu usuario para registrar la jornada.</p>
 
-		{% with messages = get_flashed_messages() %}
-			{% if messages %}
-				{% for message in messages %}
-					<div class="messages">{{ message }}</div>
-				{% endfor %}
-			{% endif %}
-		{% endwith %}
+		<div class="tabs">
+			<button class="tab-btn{% if mode == 'register' %}{% else %} active{% endif %}" data-tab="login">Iniciar sesión</button>
+			<button class="tab-btn{% if mode == 'register' %} active{% endif %}" data-tab="register">Registrarse</button>
+		</div>
 
-		<form method="POST" action="{{ url_for('login') }}">
-			<label for="username">Usuario</label>
-			<input id="username" type="text" name="username" autocomplete="username" required>
+		<!-- Panel: Iniciar sesión -->
+		<div class="panel{% if mode != 'register' %} active{% endif %}" id="panel-login">
+			{% with messages = get_flashed_messages(category_filter=["login"]) %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="alert">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+			<form method="POST" action="{{ url_for('login') }}">
+				<label for="login-username">Usuario</label>
+				<input id="login-username" type="text" name="username" autocomplete="username" required>
+				<label for="login-password">Contraseña</label>
+				<input id="login-password" type="password" name="password" autocomplete="current-password" required>
+				<button type="submit">Iniciar sesión</button>
+			</form>
+		</div>
 
-			<label for="password">Contraseña</label>
-			<input id="password" type="password" name="password" autocomplete="current-password" required>
-
-			<button type="submit">Iniciar sesión</button>
-		</form>
+		<!-- Panel: Registrarse -->
+		<div class="panel{% if mode == 'register' %} active{% endif %}" id="panel-register">
+			{% with messages = get_flashed_messages(category_filter=["register"]) %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="alert">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+			<form method="POST" action="{{ url_for('register') }}">
+				<label for="reg-username">Usuario</label>
+				<input id="reg-username" type="text" name="username" autocomplete="username" required>
+				<label for="reg-password">Contraseña</label>
+				<input id="reg-password" type="password" name="password" autocomplete="new-password" required>
+				<label for="reg-confirm">Repetir contraseña</label>
+				<input id="reg-confirm" type="password" name="confirm_password" autocomplete="new-password" required>
+				<button type="submit">Crear cuenta</button>
+			</form>
+		</div>
 	</main>
+
+	<script>
+		const tabs = document.querySelectorAll('.tab-btn');
+		const panels = document.querySelectorAll('.panel');
+		tabs.forEach(btn => {
+			btn.addEventListener('click', () => {
+				const target = btn.dataset.tab;
+				tabs.forEach(t => t.classList.remove('active'));
+				panels.forEach(p => p.classList.remove('active'));
+				btn.classList.add('active');
+				document.getElementById('panel-' + target).classList.add('active');
+			});
+		});
+	</script>
 </body>
 </html>

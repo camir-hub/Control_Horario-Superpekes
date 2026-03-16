@@ -1,175 +1,342 @@
+// ─────────────────────────────────────────────────────────────────
+// Calendar — month view + dynamic right panel
+// ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    const dayButtons = Array.from(document.querySelectorAll('.day'));
-    const dateInput = document.getElementById('work_date');
-    const selectedDayTitle = document.getElementById('calendar-selected-day');
-    const summaryWorkRange = document.getElementById('summary-work-range');
-    const summaryMealRange = document.getElementById('summary-meal-range');
-    const summaryMealHours = document.getElementById('summary-meal-hours');
-    const summaryWorkedHours = document.getElementById('summary-worked-hours');
-    const summaryComments = document.getElementById('summary-comments');
-    const summaryOvertime = document.getElementById('summary-overtime');
-    const adminUserSelect = document.getElementById('user_id');
-    const editPanel = document.getElementById('edit-entry-panel');
-    const emptyEditPanel = document.getElementById('edit-entry-panel-empty');
-    const editForm = document.getElementById('edit-entry-form');
-    const editCheckIn = document.getElementById('edit_check_in');
-    const editCheckOut = document.getElementById('edit_check_out');
-    const editMealStart = document.getElementById('edit_meal_start');
-    const editMealEnd = document.getElementById('edit_meal_end');
-    const editComments = document.getElementById('edit_comments');
+    const {
+        monthIso, selectedDay, today, isAdmin,
+        selectedUserId, monthEntries,
+        validateUrl, updateUrl,
+    } = APP;
 
-    function currentUserId() {
-        return adminUserSelect ? adminUserSelect.value : null;
+    // ── DOM references ───────────────────────────────────────────
+    const calGrid       = document.getElementById('cal-grid');
+    const monthTitle    = document.getElementById('month-title');
+    const prevBtn       = document.getElementById('prev-month-btn');
+    const nextBtn       = document.getElementById('next-month-btn');
+
+    const panelHeading  = document.getElementById('panel-heading');
+    const panelDayLabel = document.getElementById('panel-day-label');
+    const panelValidationStatus = document.getElementById('panel-validation-status');
+    const addWrap       = document.getElementById('add-form-wrap');
+    const editWrap      = document.getElementById('edit-form-wrap');
+    const viewWrap      = document.getElementById('view-wrap');
+    const noRegWrap     = document.getElementById('no-register-wrap');
+    const emptyState    = document.getElementById('empty-state');
+    const validateForm  = document.getElementById('validate-form');
+
+    // add-form fields
+    const fWorkDate  = document.getElementById('form-work-date');
+    const fCheckIn   = document.getElementById('form-check-in');
+    const fCheckOut  = document.getElementById('form-check-out');
+    const fMealStart = document.getElementById('form-meal-start');
+    const fMealEnd   = document.getElementById('form-meal-end');
+    const fEnableMeal = document.getElementById('form-enable-meal');
+    const fEnablePause = document.getElementById('form-enable-pause');
+    const fUserId    = document.getElementById('form-user-id');
+    const fUserRoleFilter = document.getElementById('form-user-role-filter');
+    const fPauseStart = document.getElementById('form-pause-start');
+    const fPauseEnd = document.getElementById('form-pause-end');
+
+    // edit-form fields
+    const editForm      = document.getElementById('edit-form');
+    const eCheckIn      = document.getElementById('edit-check-in');
+    const eCheckOut     = document.getElementById('edit-check-out');
+    const eMealStart    = document.getElementById('edit-meal-start');
+    const eMealEnd      = document.getElementById('edit-meal-end');
+    const eEnableMeal   = document.getElementById('edit-enable-meal');
+    const eEnablePause  = document.getElementById('edit-enable-pause');
+    const eReason       = document.getElementById('edit-reason');
+    const ePauseStart = document.getElementById('edit-pause-start');
+    const ePauseEnd = document.getElementById('edit-pause-end');
+
+    // view fields
+    const vWorkRange    = document.getElementById('view-work-range');
+    const vMealRange    = document.getElementById('view-meal-range');
+    const vMealHours    = document.getElementById('view-meal-hours');
+    const vWorkedHours  = document.getElementById('view-worked-hours');
+    const vOvertimeHours = document.getElementById('view-overtime-hours');
+    const vOvertimeBadge = document.getElementById('view-overtime-badge');
+
+    // ── Utilities ────────────────────────────────────────────────
+    function parseIso(s) {
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+    function toIso(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    function localeDateLabel(iso) {
+        return parseIso(iso).toLocaleDateString('es-ES', {
+            weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+        });
+    }
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+    function withId(urlTemplate, id) {
+        return urlTemplate.replace(/\/0(\/|$)/, `/${id}$1`);
     }
 
-    function setActiveButton(activeButton) {
-        dayButtons.forEach((button) => button.classList.remove('active'));
-        activeButton.classList.add('active');
+    function syncBreakInputs(mealStart, mealEnd, pauseStart, pauseEnd, mealToggle, pauseToggle) {
+        if (!mealStart || !mealEnd || !pauseStart || !pauseEnd || !mealToggle || !pauseToggle) {
+            return;
+        }
+        const mealEnabled = mealToggle.checked;
+        mealStart.disabled = !mealEnabled;
+        mealEnd.disabled = !mealEnabled;
+        if (!mealEnabled) {
+            mealStart.value = '';
+            mealEnd.value = '';
+        }
+        const pauseEnabled = pauseToggle.checked;
+        pauseStart.disabled = !pauseEnabled;
+        pauseEnd.disabled = !pauseEnabled;
+        if (!pauseEnabled) {
+            pauseStart.value = '';
+            pauseEnd.value = '';
+        }
     }
 
-    function updateDayButtonState(button, entry) {
-        button.dataset.hasEntry = entry ? 'true' : 'false';
-        button.classList.toggle('has-entry', Boolean(entry));
-        button.classList.toggle('has-overtime', Boolean(entry) && Number(entry.overtime_hours) > 0);
-        button.classList.toggle('is-validated', Boolean(entry) && Boolean(entry.overtime_validated));
-
-        if (!entry) {
-            button.dataset.checkIn = '';
-            button.dataset.checkOut = '';
-            button.dataset.mealStart = '';
-            button.dataset.mealEnd = '';
-            button.dataset.mealHours = '0.00';
-            button.dataset.workedHours = '0.00';
-            button.dataset.overtimeHours = '0.00';
-            button.dataset.comments = 'Sin registro en este día';
-            button.dataset.validated = 'false';
+    function applyUserRoleFilter() {
+        if (!fUserId || !fUserRoleFilter) {
             return;
         }
 
-        button.dataset.checkIn = entry.check_in || '';
-        button.dataset.checkOut = entry.check_out || '';
-        button.dataset.mealStart = entry.meal_start || '';
-        button.dataset.mealEnd = entry.meal_end || '';
-        button.dataset.mealHours = Number(entry.meal_hours || 0).toFixed(2);
-        button.dataset.workedHours = Number(entry.worked_hours || 0).toFixed(2);
-        button.dataset.overtimeHours = Number(entry.overtime_hours || 0).toFixed(2);
-        button.dataset.comments = entry.comments || 'Sin comentarios';
-        button.dataset.validated = entry.overtime_validated ? 'true' : 'false';
-    }
+        const selectedRole = fUserRoleFilter.value;
+        const options = Array.from(fUserId.options);
+        let firstVisibleValue = '';
 
-    function renderDaySummary(button) {
-        const hasEntry = button.dataset.hasEntry === 'true';
-        const overtime = Number(button.dataset.overtimeHours || '0');
-        const validated = button.dataset.validated === 'true';
-
-        selectedDayTitle.textContent = `Detalle ${button.dataset.label}`;
-        dateInput.value = button.dataset.day;
-
-        if (!hasEntry) {
-            summaryWorkRange.textContent = 'Sin registro';
-            summaryMealRange.textContent = 'Sin tramo de comida';
-            summaryMealHours.textContent = '0.00 h';
-            summaryWorkedHours.textContent = '0.00 h';
-            summaryComments.textContent = 'Sin registro en este día';
-            summaryOvertime.textContent = 'No existe registro en este día.';
-            summaryOvertime.classList.remove('warning');
-            summaryOvertime.classList.add('meta');
-            return;
-        }
-
-        const mealStart = button.dataset.mealStart;
-        const mealEnd = button.dataset.mealEnd;
-        summaryWorkRange.textContent = `${button.dataset.checkIn} - ${button.dataset.checkOut}`;
-        summaryMealRange.textContent = mealStart && mealEnd ? `${mealStart} - ${mealEnd}` : 'Sin tramo de comida';
-        summaryMealHours.textContent = `${button.dataset.mealHours} h`;
-        summaryWorkedHours.textContent = `${button.dataset.workedHours} h`;
-        summaryComments.textContent = button.dataset.comments || 'Sin comentarios';
-
-        if (overtime > 0) {
-            summaryOvertime.textContent = validated
-                ? `Horas extra: ${button.dataset.overtimeHours} h | Validadas`
-                : `Horas extra: ${button.dataset.overtimeHours} h`;
-            summaryOvertime.classList.remove('meta');
-            summaryOvertime.classList.add('warning');
-        } else {
-            summaryOvertime.textContent = 'No hay horas extra registradas.';
-            summaryOvertime.classList.remove('warning');
-            summaryOvertime.classList.add('meta');
-        }
-    }
-
-    function renderEditPanel(entry) {
-        if (!editPanel || !emptyEditPanel) {
-            return;
-        }
-
-        if (!entry || !entry.editable) {
-            if (editPanel) {
-                editPanel.style.display = 'none';
+        options.forEach((option) => {
+            const role = option.dataset.role || 'user';
+            const shouldShow = selectedRole === 'all' || role === selectedRole;
+            option.hidden = !shouldShow;
+            if (shouldShow && !firstVisibleValue) {
+                firstVisibleValue = option.value;
             }
-            emptyEditPanel.style.display = 'block';
-            return;
-        }
-
-        editPanel.style.display = 'block';
-        emptyEditPanel.style.display = 'none';
-        editForm.action = `/entries/${entry.id}/update`;
-        editCheckIn.value = entry.check_in || '';
-        editCheckOut.value = entry.check_out || '';
-        editMealStart.value = entry.meal_start || '';
-        editMealEnd.value = entry.meal_end || '';
-        editComments.value = entry.comments || '';
-    }
-
-    async function fetchDayData(button) {
-        const params = new URLSearchParams({ day: button.dataset.day });
-        const userId = currentUserId();
-        if (userId) {
-            params.set('user_id', userId);
-        }
-
-        const response = await fetch(`/calendar/day-data?${params.toString()}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' },
         });
 
-        if (!response.ok) {
-            throw new Error('No se pudo cargar el detalle del día');
+        const currentOption = fUserId.selectedOptions[0];
+        if (!currentOption || currentOption.hidden) {
+            fUserId.value = firstVisibleValue;
         }
-
-        return response.json();
     }
 
-    function navigateWithSelection(button) {
-        const params = new URLSearchParams(window.location.search);
-        params.set('day', button.dataset.day);
-        const userId = currentUserId();
-        if (userId) {
-            params.set('user_id', userId);
+    // ── Calendar rendering ───────────────────────────────────────
+    let currentMonth = parseIso(monthIso);
+    let currentSelected = selectedDay;
+
+    function renderCalendar(monthDate) {
+        const year  = monthDate.getFullYear();
+        const month = monthDate.getMonth();   // 0-indexed
+
+        // Month title
+        const label = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        monthTitle.textContent = cap(label);
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay  = new Date(year, month + 1, 0);
+
+        // Monday-based offset (getDay: 0=Sun → offset 6, 1=Mon → 0, …)
+        const startOffset = (firstDay.getDay() + 6) % 7;
+        const startCell   = new Date(firstDay);
+        startCell.setDate(startCell.getDate() - startOffset);
+
+        const endOffset = (lastDay.getDay() + 6) % 7;
+        const endCell = new Date(lastDay);
+        endCell.setDate(endCell.getDate() + (6 - endOffset));
+
+        calGrid.innerHTML = '';
+
+        const cursor = new Date(startCell);
+        while (cursor <= endCell) {
+            const iso          = toIso(cursor);
+            const inMonth      = cursor.getMonth() === month;
+            const isToday      = iso === today;
+            const isSelected   = iso === currentSelected;
+            const isWeekend    = cursor.getDay() === 0 || cursor.getDay() === 6;
+            const entry        = monthEntries[iso];
+
+            const cell = document.createElement('button');
+            cell.type  = 'button';
+
+            if (!inMonth) {
+                cell.className = 'cal-cell empty';
+            } else {
+                let cls = 'cal-cell';
+                if (isWeekend)                                         cls += ' is-weekend';
+                if (isToday)                                           cls += ' is-today';
+                if (entry) {
+                    if (entry.overtime_validated)                               cls += ' is-validated';
+                    else if (entry.overtime_hours > 0)                        cls += ' has-overtime';
+                    else                                                       cls += ' has-entry';
+                }
+                if (isSelected) cls += ' is-selected';
+                cell.className = cls;
+
+                const hoursHtml = entry
+                    ? `<span class="cell-hours">${entry.worked_hours}h</span>`
+                    : '<span class="cell-hours"></span>';
+                const dotHtml = (entry && !entry.overtime_validated) ? '<span class="cell-dot"></span>' : '';
+                const validatedCheckHtml = (entry && entry.overtime_validated)
+                    ? '<span class="cell-check" title="Horas validadas por administrador">[OK]</span>'
+                    : '';
+
+                cell.innerHTML = `<span class="cell-num">${cursor.getDate()}</span>${hoursHtml}${dotHtml}${validatedCheckHtml}`;
+                cell.addEventListener('click', () => selectDay(iso, cell));
+            }
+
+            calGrid.appendChild(cell);
+            cursor.setDate(cursor.getDate() + 1);
         }
+
+        // Navigation links
+        const prevMonth = new Date(year, month - 1, 1);
+        const nextMonth = new Date(year, month + 1, 1);
+        const userPart  = isAdmin ? `&user_id=${selectedUserId}` : '';
+        prevBtn.href = `/?day=${toIso(prevMonth)}${userPart}`;
+        nextBtn.href = `/?day=${toIso(nextMonth)}${userPart}`;
+    }
+
+    // ── Day selection ────────────────────────────────────────────
+    function selectDay(iso, clickedCell) {
+        document.querySelectorAll('.cal-cell.is-selected')
+            .forEach(c => c.classList.remove('is-selected'));
+        if (clickedCell) clickedCell.classList.add('is-selected');
+        currentSelected = iso;
+
+        updatePanel(iso);
+
+        const params = new URLSearchParams(window.location.search);
+        params.set('day', iso);
+        if (isAdmin && selectedUserId) params.set('user_id', selectedUserId);
         window.history.replaceState({}, '', `/?${params.toString()}`);
     }
 
-    dayButtons.forEach((button) => {
-        button.addEventListener('click', async () => {
-            setActiveButton(button);
+    // ── Right-panel update ───────────────────────────────────────
+    function hideAll() {
+        addWrap.style.display      = 'none';
+        editWrap.style.display     = 'none';
+        viewWrap.style.display     = 'none';
+        noRegWrap.style.display    = 'none';
+        emptyState.style.display   = 'none';
+        validateForm.style.display = 'none';
+    }
 
-            try {
-                const payload = await fetchDayData(button);
-                updateDayButtonState(button, payload.entry);
-                renderDaySummary(button);
-                renderEditPanel(payload.entry);
-                navigateWithSelection(button);
-            } catch (error) {
-                summaryComments.textContent = error.message;
-            }
-        });
-    });
-
-    const activeButton = document.querySelector('.day.active') || dayButtons[0];
-    if (activeButton) {
-        renderDaySummary(activeButton);
-        if (activeButton.dataset.hasEntry !== 'true') {
-            renderEditPanel(null);
+    function updateValidationStatus(entry) {
+        if (!panelValidationStatus) {
+            return;
         }
+
+        if (entry && entry.overtime_validated) {
+            panelValidationStatus.style.display = '';
+            panelValidationStatus.textContent = 'Horas validadas por administrador';
+        } else {
+            panelValidationStatus.style.display = 'none';
+        }
+    }
+
+    function updatePanel(iso) {
+        hideAll();
+        const entry = monthEntries[iso] || null;
+        panelDayLabel.textContent = cap(localeDateLabel(iso));
+        updateValidationStatus(entry);
+
+        if (entry) {
+            if (entry.editable) {
+                // ── Edit form ──
+                panelHeading.textContent = 'Modificar registro';
+                editWrap.style.display   = '';
+                editForm.action          = withId(updateUrl, entry.id);
+                eCheckIn.value   = entry.check_in;
+                eCheckOut.value  = entry.check_out;
+                eMealStart.value = entry.meal_start;
+                eMealEnd.value   = entry.meal_end;
+                if (eEnableMeal && eEnablePause) {
+                    const hasMeal = Boolean(entry.meal_start && entry.meal_end);
+                    const hasPause = Boolean(entry.pause_start && entry.pause_end);
+                    eEnableMeal.checked = hasMeal;
+                    eEnablePause.checked = hasPause;
+                    syncBreakInputs(eMealStart, eMealEnd, ePauseStart, ePauseEnd, eEnableMeal, eEnablePause);
+                }
+                eReason.value    = '';
+            } else {
+                // ── Read-only view ──
+                panelHeading.textContent = 'Registro del dia';
+                viewWrap.style.display   = '';
+                vWorkRange.textContent   = `${entry.check_in} - ${entry.check_out}`;
+                vMealRange.textContent   = (entry.meal_start && entry.meal_end)
+                    ? `${entry.meal_start} - ${entry.meal_end}` : 'Sin comida';
+                vMealHours.textContent   = `${entry.meal_hours} h`;
+                vWorkedHours.textContent = `${entry.worked_hours} h`;
+                vOvertimeHours.textContent = `${entry.overtime_hours} h`;
+
+                if (entry.overtime_validated) {
+                    vOvertimeBadge.style.display = '';
+                    vOvertimeBadge.className = 'validated-badge';
+                    vOvertimeBadge.textContent = entry.overtime_hours > 0
+                        ? `Registro validado. Horas extra: ${entry.overtime_hours} h`
+                        : 'Registro validado';
+                } else if (entry.overtime_hours > 0) {
+                    vOvertimeBadge.style.display = '';
+                    vOvertimeBadge.className = 'overtime-badge';
+                    vOvertimeBadge.textContent = `Horas extra: ${entry.overtime_hours} h`;
+                } else {
+                    vOvertimeBadge.style.display = 'none';
+                }
+            }
+
+            // Admin validate button
+            if (isAdmin && !entry.overtime_validated) {
+                validateForm.style.display = '';
+                validateForm.action        = withId(validateUrl, entry.id);
+            }
+        } else {
+            const canCreate = isAdmin || iso === today;
+            if (canCreate) {
+                panelHeading.textContent = 'Nuevo registro';
+                addWrap.style.display    = '';
+                fWorkDate.value  = iso;
+                fCheckIn.value   = '';
+                fCheckOut.value  = '';
+                fMealStart.value = '';
+                fMealEnd.value   = '';
+                if (fEnableMeal && fEnablePause) {
+                    fEnableMeal.checked = false;
+                    fEnablePause.checked = false;
+                    syncBreakInputs(fMealStart, fMealEnd, fPauseStart, fPauseEnd, fEnableMeal, fEnablePause);
+                }
+            } else {
+                panelHeading.textContent  = 'Sin registro';
+                noRegWrap.style.display   = '';
+            }
+        }
+    }
+
+    // ── Init ─────────────────────────────────────────────────────
+    currentMonth = parseIso(monthIso);
+    renderCalendar(currentMonth);
+
+    if (fUserRoleFilter) {
+        applyUserRoleFilter();
+        fUserRoleFilter.addEventListener('change', applyUserRoleFilter);
+    }
+
+    if (fEnableMeal && fEnablePause) {
+        fEnableMeal.addEventListener('change', () => syncBreakInputs(fMealStart, fMealEnd, fPauseStart, fPauseEnd, fEnableMeal, fEnablePause));
+        fEnablePause.addEventListener('change', () => syncBreakInputs(fMealStart, fMealEnd, fPauseStart, fPauseEnd, fEnableMeal, fEnablePause));
+        syncBreakInputs(fMealStart, fMealEnd, fPauseStart, fPauseEnd, fEnableMeal, fEnablePause);
+    }
+
+    if (eEnableMeal && eEnablePause) {
+        eEnableMeal.addEventListener('change', () => syncBreakInputs(eMealStart, eMealEnd, ePauseStart, ePauseEnd, eEnableMeal, eEnablePause));
+        eEnablePause.addEventListener('change', () => syncBreakInputs(eMealStart, eMealEnd, ePauseStart, ePauseEnd, eEnableMeal, eEnablePause));
+        syncBreakInputs(eMealStart, eMealEnd, ePauseStart, ePauseEnd, eEnableMeal, eEnablePause);
+    }
+
+    if (selectedDay) {
+        updatePanel(selectedDay);
+    } else {
+        emptyState.style.display = '';
     }
 });
