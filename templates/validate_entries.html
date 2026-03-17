@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Validación de Horas | Admin</title>
+	<style>
+		* { box-sizing: border-box; }
+		body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
+		.top-bar { background: #0f766e; color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+		.top-bar h1 { margin: 0; font-size: 1.5rem; }
+		.top-bar a { color: #fff; text-decoration: none; padding: 8px 12px; background: rgba(255,255,255,0.2); border-radius: 6px; }
+		.wrap { width: min(1200px, 95vw); margin: 20px auto; }
+		.controls { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+		.controls input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font: inherit; }
+		.controls button { padding: 8px 16px; background: #0f766e; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; }
+		table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+		th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+		th { background: #0f766e; color: #fff; font-weight: 700; }
+		tr:last-child td { border-bottom: none; }
+		tr:hover { background: #f9fafb; }
+		.status-pending { background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+		.status-validated { background: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+		.btn-toggle { padding: 6px 12px; font-size: 0.9rem; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; background: #fff; font-weight: 600; transition: all 0.2s; }
+		.btn-toggle.pending { border-color: #ea580c; color: #ea580c; }
+		.btn-toggle.pending:hover { background: #ea580c; color: #fff; }
+		.btn-toggle.validated { border-color: #10b981; color: #10b981; }
+		.btn-toggle.validated:hover { background: #10b981; color: #fff; }
+		.loading { opacity: 0.6; pointer-events: none; }
+		.message { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; }
+		.message.success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+		.message.error { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+		.time-cell { font-family: "Courier New", monospace; font-weight: 600; }
+		.empty { text-align: center; padding: 40px; color: #64748b; }
+	</style>
+</head>
+<body>
+	<div class="top-bar">
+		<h1>Validación de Horas</h1>
+		<a href="{{ url_for('admin_users') }}">Volver a Panel Admin</a>
+	</div>
+
+	<div class="wrap">
+		{% with messages = get_flashed_messages() %}
+			{% if messages %}
+				{% for msg in messages %}
+					<div class="message success">{{ msg }}</div>
+				{% endfor %}
+			{% endif %}
+		{% endwith %}
+
+		<div class="controls">
+			<form method="GET" style="display: flex; gap: 12px; align-items: center;">
+				<label for="month" style="font-weight: 600;">Mes:</label>
+				<input type="month" id="month" name="month" value="{{ month }}" required>
+				<button type="submit">Filtrar</button>
+			</form>
+		</div>
+
+		{% if entries %}
+		<table>
+			<thead>
+				<tr>
+					<th>Empleado</th>
+					<th>Fecha</th>
+					<th>Entrada</th>
+					<th>Salida</th>
+					<th>Comida</th>
+					<th>Pausa</th>
+					<th>Horas</th>
+					<th>Horas Extra</th>
+					<th>Estado</th>
+					<th>Acción</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for entry in entries %}
+				<tr>
+					<td><strong>{{ entry.user.username }}</strong></td>
+					<td>{{ entry.work_date.strftime('%d/%m/%Y') }}</td>
+					<td class="time-cell">{{ entry.check_in.strftime('%H:%M') }}</td>
+					<td class="time-cell">{{ entry.check_out.strftime('%H:%M') }}</td>
+					<td class="time-cell">
+						{% if entry.meal_start and entry.meal_end %}
+							{{ entry.meal_start.strftime('%H:%M') }} - {{ entry.meal_end.strftime('%H:%M') }}
+						{% else %}
+							-
+						{% endif %}
+					</td>
+					<td class="time-cell">{{ meal_hours(entry)|round(2) }}h</td>
+					<td class="time-cell">{{ worked_hours(entry)|round(2) }}h</td>
+					<td class="time-cell">{{ overtime_hours(entry)|round(2) }}h</td>
+					<td>
+						{% if entry.overtime_validated %}
+							<span class="status-validated">✓ Validado</span>
+						{% else %}
+							<span class="status-pending">⊘ Pendiente</span>
+						{% endif %}
+					</td>
+					<td>
+						<button class="btn-toggle {% if entry.overtime_validated %}validated{% else %}pending{% endif %}" 
+								data-entry-id="{{ entry.id }}"
+								type="button">
+							{% if entry.overtime_validated %}Desvalidar{% else %}Validar{% endif %}
+						</button>
+					</td>
+				</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+		{% else %}
+		<div class="empty">
+			<p style="font-size: 1.1rem;">No hay registros de horas para el mes seleccionado</p>
+		</div>
+		{% endif %}
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			document.querySelectorAll('.btn-toggle[data-entry-id]').forEach((button) => {
+				button.addEventListener('click', () => {
+					const entryId = Number(button.dataset.entryId);
+					if (!entryId) {
+						return;
+					}
+					toggleValidation(entryId, button);
+				});
+			});
+		});
+
+		async function toggleValidation(entryId, button) {
+			button.classList.add('loading');
+			try {
+				const response = await fetch(`/admin/toggle-validation/${entryId}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				const data = await response.json();
+				if (data.success) {
+					const row = button.closest('tr');
+					const statusCell = row.querySelector('td:nth-child(9)');
+					if (data.validated) {
+						statusCell.innerHTML = '<span class="status-validated">✓ Validado</span>';
+						button.classList.remove('pending');
+						button.classList.add('validated');
+						button.textContent = 'Desvalidar';
+					} else {
+						statusCell.innerHTML = '<span class="status-pending">⊘ Pendiente</span>';
+						button.classList.remove('validated');
+						button.classList.add('pending');
+						button.textContent = 'Validar';
+					}
+				} else {
+					alert('Error: ' + data.error);
+				}
+			} catch (error) {
+				console.error('Error:', error);
+				alert('Error al actualizar el estado');
+			} finally {
+				button.classList.remove('loading');
+			}
+		}
+	</script>
+</body>
+</html>

@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const panelHeading  = document.getElementById('panel-heading');
     const panelDayLabel = document.getElementById('panel-day-label');
-    const panelValidationStatus = document.getElementById('panel-validation-status');
     const addWrap       = document.getElementById('add-form-wrap');
     const editWrap      = document.getElementById('edit-form-wrap');
     const viewWrap      = document.getElementById('view-wrap');
@@ -167,9 +166,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isWeekend)                                         cls += ' is-weekend';
                 if (isToday)                                           cls += ' is-today';
                 if (entry) {
-                    if (entry.overtime_validated)                               cls += ' is-validated';
-                    else if (entry.overtime_hours > 0)                        cls += ' has-overtime';
-                    else                                                       cls += ' has-entry';
+                    if (entry.overtime_validated) cls += ' is-validated';
+                    else if (entry.overtime_hours > 0) cls += ' has-overtime';
+                    else cls += ' has-entry';
                 }
                 if (isSelected) cls += ' is-selected';
                 cell.className = cls;
@@ -223,24 +222,10 @@ document.addEventListener('DOMContentLoaded', () => {
         validateForm.style.display = 'none';
     }
 
-    function updateValidationStatus(entry) {
-        if (!panelValidationStatus) {
-            return;
-        }
-
-        if (entry && entry.overtime_validated) {
-            panelValidationStatus.style.display = '';
-            panelValidationStatus.textContent = 'Horas validadas por administrador';
-        } else {
-            panelValidationStatus.style.display = 'none';
-        }
-    }
-
     function updatePanel(iso) {
         hideAll();
         const entry = monthEntries[iso] || null;
         panelDayLabel.textContent = cap(localeDateLabel(iso));
-        updateValidationStatus(entry);
 
         if (entry) {
             if (entry.editable) {

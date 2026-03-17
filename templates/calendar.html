@@ -149,6 +149,7 @@
         .cal-cell.has-entry  { background: #f0fdf4; border-color: #86efac; }
         .cal-cell.has-overtime { background: #fff7ed; border-color: #fdba74; }
         .cal-cell.is-validated { background: #eff6ff; border-color: #93c5fd; }
+        .cal-cell.is-validated .cell-check { color: #1e40af; font-weight: 700; }
         .cal-cell.is-today { box-shadow: inset 0 0 0 2px var(--accent); }
         .cal-cell.is-selected {
             border-color: var(--accent) !important;
@@ -241,8 +242,43 @@
         .detail-item span { font-size: 0.9rem; font-weight: 600; }
         .overtime-badge { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; padding: 6px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; margin-top: 6px; }
         .validated-badge { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; padding: 6px 10px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; margin-top: 6px; }
-        .panel-validation-status { margin-bottom: 10px; }
         .required-mark { color: #ef4444; }
+        .history-card h3 { margin-bottom: 10px; }
+        .history-subtitle { color: var(--muted); font-size: 0.84rem; margin-bottom: 12px; }
+        .history-table-wrap { overflow-x: auto; }
+        .history-table { width: 100%; border-collapse: collapse; min-width: 620px; }
+        .history-table th, .history-table td {
+            border: 1px solid var(--line);
+            padding: 8px;
+            text-align: left;
+            font-size: 0.86rem;
+            white-space: nowrap;
+        }
+        .history-table th {
+            background: #f8fafc;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            font-size: 0.72rem;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-weight: 700;
+            font-size: 0.78rem;
+        }
+        .status-pill.pending {
+            background: #fff7ed;
+            border: 1px solid #fdba74;
+            color: #9a3412;
+        }
+        .status-pill.validated {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
         @media (max-width: 960px) {
             .app-grid { grid-template-columns: 1fr; }
             .form-section { border-left: none; border-top: 1px solid var(--line); position: static; max-height: none; }
@@ -371,15 +407,53 @@
                 </div>
                 <div class="cal-grid" id="cal-grid"></div>
             </div>
+
+            {% if not current_user.is_admin %}
+            <div class="card history-card">
+                <h3>Historial de horas</h3>
+                <p class="history-subtitle">Consulta tus jornadas del mes con estado de validación administrativa.</p>
+                <div class="history-table-wrap">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Horas trabajadas</th>
+                                <th>Comida</th>
+                                <th>Pausa</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in entries %}
+                            <tr>
+                                <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
+                                <td>{{ '%.2f'|format(worked_hours(item)) }} h</td>
+                                <td>{{ '%.2f'|format(meal_hours(item)) }} h</td>
+                                <td>{{ '%.2f'|format(overtime_hours(item)) }} h</td>
+                                <td>
+                                    {% if item.overtime_validated %}
+                                        <span class="status-pill validated">Validada por Admin</span>
+                                    {% else %}
+                                        <span class="status-pill pending">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5">No hay registros en este mes.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
         </section>
 
         <aside class="form-section">
             <div class="form-card" id="entry-panel">
                 <h3 id="panel-heading">Registro</h3>
                 <span class="panel-day-label" id="panel-day-label">Selecciona un dia en el calendario</span>
-                <div id="panel-validation-status" class="validated-badge panel-validation-status" style="display:none;">
-                    Horas validadas por administrador
-                </div>
 
                 <div id="add-form-wrap" style="display:none;">
                     <form id="add-form" method="POST" action="{{ url_for('add_entry') }}" class="form-group">

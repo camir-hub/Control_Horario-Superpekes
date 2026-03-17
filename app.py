@@ -27,6 +27,7 @@ from flask_login import (
     logout_user,
 )
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import A4
@@ -57,7 +58,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="employee")
+    rol = db.Column(db.String(20), nullable=False, default="employee")
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
@@ -66,7 +67,7 @@ class User(UserMixin, db.Model):
 
     @property
     def is_admin(self):
-        return self.role == "admin"
+        return self.rol == "admin"
 
 
 class TimeEntry(db.Model):
@@ -303,7 +304,7 @@ def validate_entry_payload(payload):
 
 
 def create_api_token(user):
-    return serializer.dumps({"user_id": user.id, "role": user.role})
+    return serializer.dumps({"user_id": user.id, "rol": user.rol, "role": user.rol})
 
 
 def resolve_api_user():
@@ -348,13 +349,31 @@ def api_auth_required(admin_only=False):
     return decorator
 
 
+def ensure_users_password_column_compatibility():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    if "users" not in table_names:
+        return
+
+    columns = {item["name"] for item in inspector.get_columns("users")}
+    if "password_hash" not in columns and "password" in columns:
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users RENAME COLUMN password TO password_hash"))
+
+    inspector = inspect(db.engine)
+    columns = {item["name"] for item in inspector.get_columns("users")}
+    if "rol" not in columns and "role" in columns:
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE users RENAME COLUMN role TO rol"))
+
+
 def ensure_default_admin():
     admin = User.query.filter_by(username="admin").first()
     if admin is None:
         admin = User(
             username="admin",
             password_hash=generate_password_hash(os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")),
-            role="admin",
+            rol="admin",
             active=True,
         )
         db.session.add(admin)
@@ -364,6 +383,8 @@ def ensure_default_admin():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for("admin_users"))
         return redirect(url_for("calendar"))
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -371,6 +392,9 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.active and check_password_hash(user.password_hash, password):
+            if user.is_admin:
+                flash("Este inicio de sesión es solo para empleados", "login")
+                return render_template("login.html", mode="login")
             login_user(user)
             return redirect(url_for("calendar"))
 
@@ -400,7 +424,7 @@ def register():
         new_user = User(
             username=username,
             password_hash=generate_password_hash(password),
-            role="employee",
+            rol="employee",
             active=True,
         )
         db.session.add(new_user)
@@ -409,6 +433,79 @@ def register():
         return redirect(url_for("calendar"))
 
     return render_template("login.html", mode="register")
+
+
+@app.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for("admin_users"))
+        return redirect(url_for("calendar"))
+
+    username = request.form.get("username", "").strip()
+    new_password = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if not username or not new_password or not confirm:
+        flash("Completa usuario y las dos contraseñas", "forgot")
+        return render_template("login.html", mode="forgot")
+
+    if new_password != confirm:
+        flash("Las contraseñas no coinciden", "forgot")
+        return render_template("login.html", mode="forgot")
+
+    password_error = validate_password_strength(new_password)
+    if password_error:
+        flash(password_error, "forgot")
+        return render_template("login.html", mode="forgot")
+
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.active:
+        flash("Usuario no encontrado o inactivo", "forgot")
+        return render_template("login.html", mode="forgot")
+    if user.is_admin:
+        flash("La recuperación desde esta pantalla aplica solo a empleados", "forgot")
+        return render_template("login.html", mode="forgot")
+
+    user.password_hash = generate_password_hash(new_password)
+    create_audit_log(
+        actor_user_id=user.id,
+        target_user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        action="password_reset",
+        reason="Recuperación de contraseña desde inicio de sesión",
+        details="Cambio de contraseña sin sesión activa",
+    )
+    db.session.commit()
+    flash("Contraseña actualizada. Ya puedes iniciar sesión", "login")
+    return render_template("login.html", mode="login")
+
+
+@app.route("/admin-login", methods=["GET", "POST"])
+def admin_login():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for("admin_users"))
+        flash("Acceso Denegado")
+        return redirect(url_for("calendar"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        user = User.query.filter_by(username=username).first()
+
+        if user and user.active and not user.is_admin and check_password_hash(user.password_hash, password):
+            flash("Acceso Denegado", "login")
+            return redirect(url_for("login"))
+
+        if user and user.active and user.is_admin and check_password_hash(user.password_hash, password):
+            login_user(user)
+            return redirect(url_for("admin_users"))
+
+        flash("Credenciales de administrador inválidas", "admin_login")
+
+    return render_template("admin_login.html")
 
 
 @app.route("/logout")
@@ -491,6 +588,7 @@ def calendar():
         "calendar.html",
         month_start=month_start,
         month_end=month_end,
+        entries=entries,
         selected_day=day_value,
         selected_user=selected_user,
         users=users,
@@ -686,8 +784,10 @@ def reset_user_password(user_id):
 
 
 @app.route("/admin/users", methods=["GET", "POST"])
-@login_required
 def admin_users():
+    if not current_user.is_authenticated:
+        return redirect(url_for("admin_login"))
+
     if not current_user.is_admin:
         flash("Acceso denegado")
         return redirect(url_for("calendar"))
@@ -695,13 +795,13 @@ def admin_users():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        role = request.form.get("role", "employee")
+        rol = request.form.get("rol") or request.form.get("role", "employee")
 
         if not username or not password:
             flash("Usuario y password son obligatorios")
             return redirect(url_for("admin_users"))
 
-        if role not in {"employee", "admin"}:
+        if rol not in {"employee", "admin"}:
             flash("Rol invalido")
             return redirect(url_for("admin_users"))
 
@@ -717,7 +817,7 @@ def admin_users():
         user = User(
             username=username,
             password_hash=generate_password_hash(password),
-            role=role,
+            rol=rol,
             active=True,
         )
         db.session.add(user)
@@ -729,7 +829,7 @@ def admin_users():
             entity_id=user.id,
             action="create",
             reason="Alta de usuario por administración",
-            details=f"Usuario {username} con rol {role}",
+            details=f"Usuario {username} con rol {rol}",
         )
         db.session.commit()
         flash("Usuario creado")
@@ -877,6 +977,81 @@ def validate_month_entries():
     return redirect(url_for("calendar", user_id=target_user_id, day=selected_day.isoformat()))
 
 
+@app.route("/admin/validate-entries", methods=["GET"])
+@login_required
+def admin_validate_entries():
+    if not current_user.is_authenticated:
+        return redirect(url_for("admin_login"))
+    if not current_user.is_admin:
+        flash("Acceso denegado")
+        return redirect(url_for("calendar"))
+
+    month = request.args.get("month") or date.today().strftime("%Y-%m")
+    
+    try:
+        month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
+    except ValueError:
+        month = date.today().strftime("%Y-%m")
+        month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
+
+    if month_start.month == 12:
+        month_end_exclusive = month_start.replace(year=month_start.year + 1, month=1, day=1)
+    else:
+        month_end_exclusive = month_start.replace(month=month_start.month + 1, day=1)
+
+    entries = (
+        TimeEntry.query.filter(
+            TimeEntry.work_date >= month_start,
+            TimeEntry.work_date < month_end_exclusive,
+        )
+        .order_by(TimeEntry.work_date.desc(), TimeEntry.user.username.asc())
+        .all()
+    )
+
+    return render_template(
+        "validate_entries.html",
+        entries=entries,
+        month=month,
+        worked_hours=worked_hours,
+        meal_hours=meal_hours,
+        overtime_hours=overtime_hours,
+    )
+
+
+@app.route("/admin/toggle-validation/<int:entry_id>", methods=["POST"])
+@login_required
+def toggle_validation(entry_id):
+    if not current_user.is_authenticated:
+        return redirect(url_for("admin_login"))
+    if not current_user.is_admin:
+        return jsonify({"error": "Acceso denegado"}), 403
+
+    entry = db.session.get(TimeEntry, entry_id)
+    if not entry:
+        return jsonify({"error": "Registro no encontrado"}), 404
+
+    entry.overtime_validated = not entry.overtime_validated
+    action_text = "validado" if entry.overtime_validated else "desvalidado"
+    
+    create_audit_log(
+        actor_user_id=current_user.id,
+        target_user_id=entry.user_id,
+        time_entry_id=entry.id,
+        entity_type="time_entry",
+        entity_id=entry.id,
+        action="toggle_validation",
+        reason=f"Registro {action_text} por admin",
+        details=f"Horas: {worked_hours(entry):.2f}h, Estado: {action_text}",
+    )
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "validated": entry.overtime_validated,
+        "status": "Validado" if entry.overtime_validated else "Pendiente"
+    })
+
+
 @app.route("/report")
 @login_required
 def report():
@@ -918,6 +1093,7 @@ def report_excel():
         selected_user_id = int(request.args["user_id"])
 
     _, _, entries = monthly_entries(month, selected_user_id)
+    show_comments = active_user.is_admin
 
     workbook = Workbook()
     sheet = workbook.active
@@ -932,25 +1108,26 @@ def report_excel():
         "Horas netas",
         "Horas extra",
         "Validadas",
-        "Comentarios",
     ]
+    if show_comments:
+        headers.append("Comentarios")
     sheet.append(headers)
 
     for item in entries:
-        sheet.append(
-            [
-                item.work_date.isoformat(),
-                item.check_in.strftime("%H:%M"),
-                item.meal_start.strftime("%H:%M") if item.meal_start else "",
-                item.meal_end.strftime("%H:%M") if item.meal_end else "",
-                item.check_out.strftime("%H:%M"),
-                meal_hours(item),
-                worked_hours(item),
-                overtime_hours(item),
-                "SI" if item.overtime_validated else "NO",
-                item.comments or "",
-            ]
-        )
+        row = [
+            item.work_date.isoformat(),
+            item.check_in.strftime("%H:%M"),
+            item.meal_start.strftime("%H:%M") if item.meal_start else "",
+            item.meal_end.strftime("%H:%M") if item.meal_end else "",
+            item.check_out.strftime("%H:%M"),
+            meal_hours(item),
+            worked_hours(item),
+            overtime_hours(item),
+            "SI" if item.overtime_validated else "NO",
+        ]
+        if show_comments:
+            row.append(item.comments or "")
+        sheet.append(row)
 
     output = io.BytesIO()
     workbook.save(output)
@@ -971,6 +1148,7 @@ def report_pdf():
         selected_user_id = int(request.args["user_id"])
 
     _, _, entries = monthly_entries(month, selected_user_id)
+    show_comments = active_user.is_admin
 
     selected_user = db.session.get(User, selected_user_id)
 
@@ -989,21 +1167,27 @@ def report_pdf():
     pdf.drawString(40, y, f"Mes: {month}")
     y -= 25
 
-    pdf.setFont("Helvetica-Bold", 9)
-    pdf.drawString(40, y, "Fecha")
-    pdf.drawString(105, y, "Entrada")
-    pdf.drawString(160, y, "Comida")
-    pdf.drawString(250, y, "Salida")
-    pdf.drawString(305, y, "Neto")
-    pdf.drawString(350, y, "Extra")
-    pdf.drawString(395, y, "Validada")
-    y -= 14
+    def draw_pdf_table_header(current_y):
+        pdf.setFont("Helvetica-Bold", 9)
+        pdf.drawString(40, current_y, "Fecha")
+        pdf.drawString(105, current_y, "Entrada")
+        pdf.drawString(160, current_y, "Comida")
+        pdf.drawString(250, current_y, "Salida")
+        pdf.drawString(305, current_y, "Neto")
+        pdf.drawString(350, current_y, "Extra")
+        pdf.drawString(395, current_y, "Validada")
+        if show_comments:
+            pdf.drawString(450, current_y, "Comentario")
+        return current_y - 14
+
+    y = draw_pdf_table_header(y)
 
     pdf.setFont("Helvetica", 9)
     for item in entries:
         if y < 60:
             pdf.showPage()
             y = height - 50
+            y = draw_pdf_table_header(y)
             pdf.setFont("Helvetica", 9)
 
         meal_text = "-"
@@ -1017,6 +1201,8 @@ def report_pdf():
         pdf.drawString(305, y, f"{worked_hours(item):.2f}")
         pdf.drawString(350, y, f"{overtime_hours(item):.2f}")
         pdf.drawString(395, y, "SI" if item.overtime_validated else "NO")
+        if show_comments:
+            pdf.drawString(450, y, (item.comments or "-")[:30])
         y -= 13
 
     pdf.save()
@@ -1047,7 +1233,7 @@ def api_login():
             "user": {
                 "id": user.id,
                 "username": user.username,
-                "role": user.role,
+                "rol": user.rol,
             },
         }
     )
@@ -1057,7 +1243,7 @@ def api_login():
 @api_auth_required()
 def api_me():
     user = request.api_user
-    return jsonify({"id": user.id, "username": user.username, "role": user.role, "active": user.active})
+    return jsonify({"id": user.id, "username": user.username, "rol": user.rol, "active": user.active})
 
 
 @app.get("/api/users")
@@ -1069,7 +1255,7 @@ def api_users_list():
             {
                 "id": u.id,
                 "username": u.username,
-                "role": u.role,
+                "rol": u.rol,
                 "active": u.active,
                 "created_at": u.created_at.isoformat(),
             }
@@ -1084,19 +1270,19 @@ def api_users_create():
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
-    role = (data.get("role") or "employee").strip()
+    rol = (data.get("rol") or data.get("role") or "employee").strip()
 
     if not username or not password:
         return jsonify({"error": "username y password son obligatorios"}), 400
-    if role not in {"employee", "admin"}:
-        return jsonify({"error": "role debe ser employee o admin"}), 400
+    if rol not in {"employee", "admin"}:
+        return jsonify({"error": "rol debe ser employee o admin"}), 400
     password_error = validate_password_strength(password)
     if password_error:
         return jsonify({"error": password_error}), 400
     if User.query.filter_by(username=username).first():
         return jsonify({"error": "El usuario ya existe"}), 409
 
-    user = User(username=username, password_hash=generate_password_hash(password), role=role, active=True)
+    user = User(username=username, password_hash=generate_password_hash(password), rol=rol, active=True)
     db.session.add(user)
     db.session.flush()
     create_audit_log(
@@ -1106,11 +1292,11 @@ def api_users_create():
         entity_id=user.id,
         action="create",
         reason="Alta de usuario desde API",
-        details=f"Usuario {username} con rol {role}",
+        details=f"Usuario {username} con rol {rol}",
     )
     db.session.commit()
 
-    return jsonify({"id": user.id, "username": user.username, "role": user.role, "active": user.active}), 201
+    return jsonify({"id": user.id, "username": user.username, "rol": user.rol, "active": user.active}), 201
 
 
 @app.patch("/api/users/<int:user_id>/status")
@@ -1407,6 +1593,7 @@ def api_report_pdf():
 
 with app.app_context():
     db.create_all()
+    ensure_users_password_column_compatibility()
     ensure_default_admin()
 
 

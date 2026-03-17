@@ -35,7 +35,10 @@
     <div class="wrap">
         <div class="top">
             <h1>Panel de usuarios</h1>
-            <a href="{{ url_for('calendar') }}">Volver al calendario</a>
+            <div style="display: flex; gap: 12px;">
+                <a href="{{ url_for('admin_validate_entries') }}" style="background: #ea580c; padding: 8px 16px; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 700;">Validar Horas</a>
+                <a href="{{ url_for('calendar') }}">Volver al calendario</a>
+            </div>
         </div>
 
         {% with messages = get_flashed_messages() %}
@@ -53,7 +56,7 @@
                 <form method="POST" action="{{ url_for('admin_users') }}">
                     <input type="text" name="username" placeholder="Usuario" required>
                     <input type="password" name="password" placeholder="Password segura" required>
-                    <select name="role" required>
+                    <select name="rol" required>
                         <option value="employee" selected>Empleado</option>
                         <option value="admin">Administrador</option>
                     </select>
@@ -75,7 +78,7 @@
                         {% for user in users %}
                             <tr>
                                 <td>{{ user.username }}</td>
-                                <td>{{ user.role }}</td>
+                                <td>{{ user.rol }}</td>
                                 <td>{{ weekly_totals[user.id] }} h</td>
                                 <td>{% if user.active %}Activo{% else %}Inactivo{% endif %}</td>
                                 <td>

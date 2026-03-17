@@ -8,14 +8,35 @@
         body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
         .wrap { width: min(1120px, 95vw); margin: 24px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
         .bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .bar a { text-decoration: none; color: #0f766e; font-weight: 700; }
+        .bar a, .bar .link-btn { text-decoration: none; color: #0f766e; font-weight: 700; }
         form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
         input, select, button { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; }
         button { border: 0; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
+        .link-btn {
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: #0f766e;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            line-height: 1.2;
+        }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #e5e7eb; padding: 9px; text-align: left; }
         .total { margin-top: 12px; font-weight: 700; }
         .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+        .status-pill.pending { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; }
+        .status-pill.validated { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
 
         @media print {
             .no-print { display: none; }
@@ -29,7 +50,7 @@
             <h1>Informe mensual oficial</h1>
             <div class="actions">
                 <a href="{{ url_for('calendar') }}">Volver</a>
-                <button type="button" onclick="window.print()">Imprimir</button>
+                <button type="button" class="link-btn" onclick="window.print()">Imprimir</button>
                 <a href="{{ url_for('report_pdf', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar PDF</a>
                 <a href="{{ url_for('report_excel', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar Excel</a>
             </div>
@@ -68,7 +89,9 @@
                     <th>Horas efectivas</th>
                     <th>Horas extra</th>
                     <th>Validadas</th>
+                    {% if current_user.is_admin %}
                     <th>Comentarios</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -82,8 +105,16 @@
                         <td>{{ '%.2f'|format(meal_hours(item)) }}</td>
                         <td>{{ '%.2f'|format(worked_hours(item)) }}</td>
                         <td>{{ '%.2f'|format(overtime_hours(item)) }}</td>
-                        <td>{% if item.overtime_validated %}SI{% else %}NO{% endif %}</td>
+                        <td>
+                            {% if item.overtime_validated %}
+                                <span class="status-pill validated">Validada por Admin</span>
+                            {% else %}
+                                <span class="status-pill pending">Pendiente</span>
+                            {% endif %}
+                        </td>
+                        {% if current_user.is_admin %}
                         <td>{{ item.comments or '-' }}</td>
+                        {% endif %}
                     </tr>
                 {% endfor %}
             </tbody>
