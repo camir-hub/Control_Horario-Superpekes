@@ -144,7 +144,7 @@
 
 		.tabs {
 			display: grid;
-			grid-template-columns: repeat(3, 1fr);
+			grid-template-columns: repeat(2, 1fr);
 			gap: 8px;
 			margin-bottom: 18px;
 		}
@@ -266,7 +266,6 @@
 
 			<div class="tabs">
 				<button class="tab-btn{% if mode == 'login' %} active{% endif %}" data-tab="login">Entrar</button>
-				<button class="tab-btn{% if mode == 'register' %} active{% endif %}" data-tab="register">Registro</button>
 				<button class="tab-btn{% if mode == 'forgot' %} active{% endif %}" data-tab="forgot">Olvidé contraseña</button>
 			</div>
 
@@ -287,29 +286,6 @@
 
 					<button type="submit" class="cta">Entrar ahora</button>
 					<p class="hint">Este inicio de sesión es solo para empleados. Si eres administrador, entra por <a href="{{ url_for('admin_login') }}">/admin-login</a>.</p>
-				</form>
-			</div>
-
-			<div class="panel-section{% if mode == 'register' %} active{% endif %}" id="panel-register">
-				{% with messages = get_flashed_messages(category_filter=['register']) %}
-					{% if messages %}
-						{% for msg in messages %}
-							<div class="alert">{{ msg }}</div>
-						{% endfor %}
-					{% endif %}
-				{% endwith %}
-				<form method="POST" action="{{ url_for('register') }}">
-					<label for="reg-username">Usuario</label>
-					<input id="reg-username" type="text" name="username" autocomplete="username" required>
-
-					<label for="reg-password">Contraseña</label>
-					<input id="reg-password" type="password" name="password" autocomplete="new-password" required>
-
-					<label for="reg-confirm">Repetir contraseña</label>
-					<input id="reg-confirm" type="password" name="confirm_password" autocomplete="new-password" required>
-
-					<button type="submit" class="cta">Crear cuenta</button>
-					<p class="hint">La cuenta creada desde aquí se registra como empleado.</p>
 				</form>
 			</div>
 

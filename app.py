@@ -405,7 +405,12 @@ def login():
 
 @app.route("/register", methods=["POST"])
 def register():
-    if current_user.is_authenticated:
+    if not current_user.is_authenticated:
+        flash("Solo un administrador puede registrar usuarios", "login")
+        return redirect(url_for("login"))
+
+    if not current_user.is_admin:
+        flash("Solo un administrador puede registrar usuarios", "login")
         return redirect(url_for("calendar"))
 
     username = request.form.get("username", "").strip()
@@ -429,10 +434,9 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
-        login_user(new_user)
-        return redirect(url_for("calendar"))
+        return redirect(url_for("admin_users"))
 
-    return render_template("login.html", mode="register")
+    return redirect(url_for("admin_users"))
 
 
 @app.route("/forgot-password", methods=["POST"])
