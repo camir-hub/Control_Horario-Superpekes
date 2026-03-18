@@ -504,8 +504,58 @@ def admin_login():
             return redirect(url_for("admin_users"))
 
         flash("Credenciales de administrador inválidas", "admin_login")
+        return render_template("admin_login.html", mode="login")
 
-    return render_template("admin_login.html")
+    return render_template("admin_login.html", mode="login")
+
+
+@app.route("/admin-forgot-password", methods=["POST"])
+def admin_forgot_password():
+    if current_user.is_authenticated:
+        if current_user.is_admin:
+            return redirect(url_for("admin_users"))
+        flash("Acceso denegado", "login")
+        return redirect(url_for("calendar"))
+
+    username = request.form.get("username", "").strip()
+    new_password = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if not username or not new_password or not confirm:
+        flash("Completa usuario y las dos contraseñas", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot")
+
+    if new_password != confirm:
+        flash("Las contraseñas no coinciden", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot")
+
+    password_error = validate_password_strength(new_password)
+    if password_error:
+        flash(password_error, "admin_forgot")
+        return render_template("admin_login.html", mode="forgot")
+
+    user = User.query.filter_by(username=username).first()
+    if not user or not user.active:
+        flash("Usuario no encontrado o inactivo", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot")
+    if not user.is_admin:
+        flash("Este formulario aplica solo a administradores", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot")
+
+    user.password_hash = generate_password_hash(new_password)
+    create_audit_log(
+        actor_user_id=user.id,
+        target_user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        action="password_reset",
+        reason="Recuperación de contraseña desde admin-login",
+        details="Cambio de contraseña de administrador sin sesión activa",
+    )
+    db.session.commit()
+
+    flash("Contraseña de administrador actualizada. Ya puedes iniciar sesión", "admin_login")
+    return render_template("admin_login.html", mode="login")
 
 
 @app.route("/logout")

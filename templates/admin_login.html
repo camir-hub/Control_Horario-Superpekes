@@ -110,6 +110,38 @@
 			opacity: 0.9;
 		}
 
+		.tabs {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 8px;
+			margin-bottom: 18px;
+		}
+
+		.tab-btn {
+			border: 1px solid rgba(148, 163, 184, 0.4);
+			background: rgba(30, 41, 59, 0.65);
+			color: #e2e8f0;
+			border-radius: 10px;
+			padding: 10px 8px;
+			font-size: 0.9rem;
+			font-weight: 700;
+			cursor: pointer;
+		}
+
+		.tab-btn.active {
+			background: rgba(234, 88, 12, 0.92);
+			border-color: rgba(251, 146, 60, 0.9);
+			color: #fff;
+		}
+
+		.panel-section {
+			display: none;
+		}
+
+		.panel-section.active {
+			display: block;
+		}
+
 		.footer {
 			margin-top: 20px;
 			text-align: center;
@@ -138,6 +170,13 @@
 			font-weight: 700;
 			margin-bottom: 18px;
 		}
+
+		.hint {
+			margin-top: 10px;
+			color: #cbd5e1;
+			font-size: 0.88rem;
+			line-height: 1.4;
+		}
 	</style>
 </head>
 <body>
@@ -146,27 +185,76 @@
 		<h1>Admin Login</h1>
 		<p class="subtitle">Panel exclusivo para administradores del sistema.</p>
 
-		{% with messages = get_flashed_messages(category_filter=['admin_login']) %}
-			{% if messages %}
-				{% for msg in messages %}
-					<div class="alert">{{ msg }}</div>
-				{% endfor %}
-			{% endif %}
-		{% endwith %}
+		<div class="tabs">
+			<button class="tab-btn{% if mode != 'forgot' %} active{% endif %}" data-tab="login" type="button">Entrar</button>
+			<button class="tab-btn{% if mode == 'forgot' %} active{% endif %}" data-tab="forgot" type="button">Olvidé contraseña</button>
+		</div>
 
-		<form method="POST" action="{{ url_for('admin_login') }}">
-			<label for="username">Usuario</label>
-			<input id="username" type="text" name="username" autocomplete="username" placeholder="Ingresa tu usuario" required>
+		<div class="panel-section{% if mode != 'forgot' %} active{% endif %}" id="panel-login">
+			{% with messages = get_flashed_messages(category_filter=['admin_login']) %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="alert">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
 
-			<label for="password">Contraseña</label>
-			<input id="password" type="password" name="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required>
+			<form method="POST" action="{{ url_for('admin_login') }}">
+				<label for="username">Usuario</label>
+				<input id="username" type="text" name="username" autocomplete="username" placeholder="Ingresa tu usuario" required>
 
-			<button type="submit">Ingresar como Admin</button>
-		</form>
+				<label for="password">Contraseña</label>
+				<input id="password" type="password" name="password" autocomplete="current-password" placeholder="Ingresa tu contraseña" required>
+
+				<button type="submit">Ingresar como Admin</button>
+			</form>
+		</div>
+
+		<div class="panel-section{% if mode == 'forgot' %} active{% endif %}" id="panel-forgot">
+			{% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="alert">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+
+			<form method="POST" action="{{ url_for('admin_forgot_password') }}">
+				<label for="forgot-username">Usuario administrador</label>
+				<input id="forgot-username" type="text" name="username" autocomplete="username" placeholder="Ingresa tu usuario admin" required>
+
+				<label for="forgot-password">Nueva contraseña</label>
+				<input id="forgot-password" type="password" name="new_password" autocomplete="new-password" placeholder="Nueva contraseña" required>
+
+				<label for="forgot-confirm">Repetir nueva contraseña</label>
+				<input id="forgot-confirm" type="password" name="confirm_password" autocomplete="new-password" placeholder="Repite tu nueva contraseña" required>
+
+				<button type="submit">Actualizar contraseña</button>
+				<p class="hint">Debe cumplir políticas de seguridad: mayúscula, minúscula, número, símbolo y mínimo 10 caracteres.</p>
+			</form>
+		</div>
 
 		<div class="footer">
-			¿Eres un empleado? <a href="{{ url_for('login') }}">Ir a login de empleado</a>
+			¿Eres un empleado? <a href="{{ url_for('login') }}">Ir a la página principal de validación de usuario</a>
 		</div>
 	</div>
+
+	<script>
+		const tabs = document.querySelectorAll('.tab-btn');
+		const sections = document.querySelectorAll('.panel-section');
+
+		tabs.forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const target = btn.dataset.tab;
+				tabs.forEach((item) => item.classList.remove('active'));
+				sections.forEach((item) => item.classList.remove('active'));
+				btn.classList.add('active');
+				const panel = document.getElementById('panel-' + target);
+				if (panel) {
+					panel.classList.add('active');
+				}
+			});
+		});
+	</script>
 </body>
 </html>
