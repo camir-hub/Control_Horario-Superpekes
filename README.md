@@ -7,14 +7,18 @@ Aplicacion de control de presencia laboral con arquitectura web + API REST.
 - Backend Flask en entorno virtual (venv).
 - Base de datos PostgreSQL (compatible con pgAdmin 4).
 - Roles:
-	- Empleado: crea su jornada del dia actual (entrada/comida/salida) y comentarios.
-	- Administrador: alta/baja de usuarios, consulta global y validacion de horas extra.
+	- Empleado: crea su jornada del dia actual y consulta historial mensual.
+	- Administrador: alta/baja de usuarios, consulta global y validacion de registros con horas extra.
+- Registro por tramos: entrada/salida, comida, pausa y horas extra.
 - Regla legal: maximo 40 horas semanales por empleado.
 - Vista calendario semanal interactiva por dia.
+- Geolocalizacion opcional al crear o modificar el fichaje desde navegador compatible.
 - Exportacion para inspeccion:
 	- Vista de impresion oficial.
 	- Descarga PDF.
 	- Descarga Excel (.xlsx).
+- Informes con estado del registro (Pendiente/Validado) y motivo de cambios con hora.
+- Trazabilidad de cambios en tabla de auditoria (audit_logs).
 - API REST para reutilizar la misma logica desde Web o App movil.
 
 ## Estructura principal
@@ -78,9 +82,13 @@ Endpoints principales:
 - `GET /api/me`
 - `GET /api/entries?day=YYYY-MM-DD&user_id=<id>`
 - `POST /api/entries`
+	- admite opcionalmente `location_latitude` y `location_longitude`
+- `PATCH /api/entries/<id>`
+	- requiere `change_reason` y permite actualizar tramos (comida/pausa/extra)
 - `GET /api/reports/monthly?month=YYYY-MM&user_id=<id>`
 - `GET /api/reports/monthly/pdf?month=YYYY-MM&user_id=<id>`
 - `GET /api/reports/monthly/excel?month=YYYY-MM&user_id=<id>`
+- `GET /api/audit-logs` (solo admin)
 
 Solo administrador:
 
@@ -91,8 +99,10 @@ Solo administrador:
 
 ## Restricciones de negocio implementadas
 
-- No hay endpoints de edicion o borrado de registros historicos.
+- No hay endpoint de borrado de registros historicos.
+- Modificar registros requiere motivo del cambio y queda auditado.
 - Empleado solo crea su jornada del dia actual.
 - Un solo registro por empleado y dia.
 - Si la suma semanal supera 40h, se bloquea el alta.
+- Tramos de comida/pausa/extra deben quedar dentro de la jornada y sin solaparse.
 - Horas extra diarias (sobre 8h) quedan marcadas para validacion administrativa.

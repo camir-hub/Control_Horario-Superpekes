@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Validar Horas | Admin</title>
+	<style>
+		:root {
+			--sb: #1e293b;
+			--sb-dark: #0f172a;
+			--sb-accent: #ea580c;
+			--sb-text: #94a3b8;
+			--bg: #f0f4f9;
+			--paper: #fff;
+			--ink: #0f172a;
+			--muted: #64748b;
+			--line: #e2e8f0;
+			--accent: #355f87;
+			--accent-2: #2e6fa9;
+		}
+
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+
+		body {
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			background: var(--bg);
+			color: var(--ink);
+			min-height: 100vh;
+		}
+
+		.layout {
+			display: grid;
+			grid-template-columns: 250px 1fr;
+			min-height: 100vh;
+		}
+
+		/* ─── Sidebar ─── */
+		.sidebar {
+			background: var(--sb);
+			position: sticky;
+			top: 0;
+			height: 100vh;
+			display: flex;
+			flex-direction: column;
+			overflow-y: auto;
+		}
+
+		.sb-brand {
+			background: var(--sb-dark);
+			padding: 22px 18px;
+			color: #fff;
+			font-weight: 800;
+			font-size: 1.02rem;
+			border-bottom: 2px solid var(--sb-accent);
+			letter-spacing: 0.03em;
+		}
+
+		.sb-nav {
+			display: flex;
+			flex-direction: column;
+			padding: 14px 10px;
+			gap: 3px;
+			flex: 1;
+		}
+
+		.sb-nav a {
+			display: flex;
+			align-items: center;
+			gap: 9px;
+			padding: 10px 13px;
+			color: var(--sb-text);
+			text-decoration: none;
+			border-radius: 8px;
+			font-weight: 600;
+			font-size: 0.9rem;
+			transition: background 0.15s, color 0.15s;
+		}
+
+		.sb-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+		.sb-nav a.active { background: var(--sb-accent); color: #fff; }
+		.sb-nav a.exit { margin-top: auto; color: #f87171; }
+		.sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
+
+		.sb-divider {
+			height: 1px;
+			background: rgba(255,255,255,0.08);
+			margin: 8px 10px;
+		}
+
+		/* ─── Content ─── */
+		.content {
+			padding: 26px 30px;
+			display: grid;
+			gap: 18px;
+			align-content: start;
+		}
+
+		.page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+		.page-header p { color: var(--muted); font-size: 0.92rem; }
+
+		.flash {
+			border-radius: 10px;
+			padding: 11px 14px;
+			font-weight: 600;
+		}
+
+		.flash.success { border: 1px solid #86efac; background: #f0fdf4; color: #166534; }
+		.flash.error   { border: 1px solid #fca5a5; background: #fee2e2; color: #991b1b; }
+
+		.panel {
+			background: var(--paper);
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			padding: 20px;
+		}
+
+		.filter-bar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			align-items: flex-end;
+		}
+
+		.filter-bar label { font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 4px; }
+
+		input[type="month"] {
+			border: 1px solid var(--line);
+			border-radius: 8px;
+			padding: 9px 12px;
+			font: inherit;
+			font-size: 0.88rem;
+			color: var(--ink);
+			background: #fff;
+		}
+
+		.btn-filter {
+			border: 0;
+			border-radius: 8px;
+			padding: 9px 18px;
+			font: inherit;
+			font-size: 0.88rem;
+			font-weight: 700;
+			cursor: pointer;
+			background: linear-gradient(135deg, var(--accent), var(--accent-2));
+			color: #fff;
+		}
+
+		.table-wrap { overflow-x: auto; }
+
+		table { width: 100%; border-collapse: collapse; min-width: 800px; }
+
+		th, td {
+			border: 1px solid var(--line);
+			padding: 9px 10px;
+			font-size: 0.86rem;
+			text-align: left;
+		}
+
+		th { background: #f8fafc; font-weight: 700; }
+		tr:hover td { background: #f8fafc; }
+
+		.mono { font-family: "Courier New", monospace; font-weight: 600; }
+
+		.pill {
+			display: inline-block;
+			padding: 3px 9px;
+			border-radius: 999px;
+			font-size: 0.76rem;
+			font-weight: 700;
+		}
+
+		.pill-pending   { background: #fef3c7; color: #92400e; }
+		.pill-validated { background: #d1fae5; color: #065f46; }
+
+		.btn-toggle {
+			padding: 6px 12px;
+			font-size: 0.82rem;
+			border: 1px solid var(--line);
+			border-radius: 6px;
+			cursor: pointer;
+			background: var(--paper);
+			font-weight: 700;
+			transition: all 0.15s;
+		}
+
+		.btn-toggle.pending   { border-color: var(--sb-accent); color: var(--sb-accent); }
+		.btn-toggle.pending:hover { background: var(--sb-accent); color: #fff; }
+		.btn-toggle.validated { border-color: #10b981; color: #10b981; }
+		.btn-toggle.validated:hover { background: #10b981; color: #fff; }
+		.btn-toggle.loading { opacity: 0.5; pointer-events: none; }
+
+		.empty {
+			text-align: center;
+			padding: 48px 20px;
+			color: var(--muted);
+			font-size: 1rem;
+		}
+
+		@media (max-width: 1100px) {
+			.layout  { grid-template-columns: 1fr; }
+			.sidebar { position: static; height: auto; }
+			.sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
+			.sb-nav a.exit { margin-top: 0; }
+			.content { padding: 16px; }
+		}
+	</style>
+</head>
+<body>
+	<div class="layout">
+		<aside class="sidebar">
+			<div class="sb-brand">&#128737; Panel Administrador</div>
+			<nav class="sb-nav">
+				<a href="{{ url_for('admin_dashboard') }}">&#128202; Inicio</a>
+				<a href="{{ url_for('admin_users') }}">&#128101; Empleados</a>
+				<a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
+				<a href="{{ url_for('report') }}">&#128203; Informes</a>
+				<a class="active" href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
+				<div class="sb-divider"></div>
+				<a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
+			</nav>
+		</aside>
+
+		<main class="content">
+			<div class="page-header">
+				<h1>Validar Horas</h1>
+				<p>Revisa y aprueba los registros de horas de los empleados.</p>
+			</div>
+
+			{% with messages = get_flashed_messages() %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="flash success">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+
+			<div class="panel">
+				<form method="GET" class="filter-bar">
+					<div>
+						<label for="month">Mes</label>
+						<input type="month" id="month" name="month" value="{{ month }}" required>
+					</div>
+					<button type="submit" class="btn-filter">Filtrar</button>
+				</form>
+			</div>
+
+			<div class="panel">
+				{% if entries %}
+				<div class="table-wrap">
+					<table>
+						<thead>
+							<tr>
+								<th>Empleado</th>
+								<th>Fecha</th>
+								<th>Entrada</th>
+								<th>Salida</th>
+								<th>Horas comida</th>
+								<th>Pausa</th>
+								<th>Horas</th>
+								<th>Horas Extra</th>
+								<th>Estado</th>
+								<th>Acción</th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for entry in entries %}
+							<tr>
+								<td><strong>{{ entry.user.username }}</strong></td>
+								<td>{{ entry.work_date.strftime('%d/%m/%Y') }}</td>
+								<td class="mono">{{ entry.check_in.strftime('%H:%M') }}</td>
+								<td class="mono">{{ entry.check_out.strftime('%H:%M') }}</td>
+								<td class="mono">{{ meal_hours(entry)|round(2) }}h</td>
+								<td class="mono">{{ pause_hours(entry)|round(2) }}h</td>
+								<td class="mono">{{ worked_hours(entry)|round(2) }}h</td>
+								<td class="mono">{{ overtime_hours(entry)|round(2) }}h</td>
+								<td>
+									{% if entry.overtime_validated %}
+										<span class="pill pill-validated">&#10003; Validado</span>
+									{% else %}
+										<span class="pill pill-pending">&#8854; Pendiente</span>
+									{% endif %}
+								</td>
+								<td>
+									<button class="btn-toggle {% if entry.overtime_validated %}validated{% else %}pending{% endif %}"
+											data-entry-id="{{ entry.id }}"
+											type="button">
+										{% if entry.overtime_validated %}Desvalidar{% else %}Validar{% endif %}
+									</button>
+								</td>
+							</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
+				{% else %}
+				<div class="empty">No hay registros de horas para el mes seleccionado.</div>
+				{% endif %}
+			</div>
+		</main>
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			document.querySelectorAll('.btn-toggle[data-entry-id]').forEach((button) => {
+				button.addEventListener('click', () => {
+					const entryId = Number(button.dataset.entryId);
+					if (!entryId) return;
+					toggleValidation(entryId, button);
+				});
+			});
+		});
+
+		async function toggleValidation(entryId, button) {
+			button.classList.add('loading');
+			try {
+				const response = await fetch(`/admin/toggle-validation/${entryId}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				const data = await response.json();
+				if (data.success) {
+					const row = button.closest('tr');
+					const statusCell = row.querySelector('td:nth-child(9)');
+					if (data.validated) {
+						statusCell.innerHTML = '<span class="pill pill-validated">&#10003; Validado</span>';
+						button.classList.replace('pending', 'validated');
+						button.textContent = 'Desvalidar';
+					} else {
+						statusCell.innerHTML = '<span class="pill pill-pending">&#8854; Pendiente</span>';
+						button.classList.replace('validated', 'pending');
+						button.textContent = 'Validar';
+					}
+				} else {
+					alert('Error: ' + data.error);
+				}
+			} catch (error) {
+				console.error('Error:', error);
+				alert('Error al actualizar el estado');
+			} finally {
+				button.classList.remove('loading');
+			}
+		}
+	</script>
+</body>
+</html>

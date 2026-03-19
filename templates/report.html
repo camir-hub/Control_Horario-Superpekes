@@ -3,124 +3,319 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe Oficial</title>
+    <title>Informe Mensual | Admin</title>
     <style>
-        body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
-        .wrap { width: min(1120px, 95vw); margin: 24px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
-        .bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .bar a, .bar .link-btn { text-decoration: none; color: #0f766e; font-weight: 700; }
-        form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
-        input, select, button { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; }
-        button { border: 0; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
-        .link-btn {
-            padding: 0;
+        :root {
+            --sb: #1e293b;
+            --sb-dark: #0f172a;
+            --sb-accent: #ea580c;
+            --sb-text: #94a3b8;
+            --bg: #f0f4f9;
+            --paper: #fff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --accent: #355f87;
+            --accent-2: #2e6fa9;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        /* ─── Layout ─── */
+        .layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        .layout.no-sidebar { grid-template-columns: 1fr; }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            background: var(--sb);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sb-brand {
+            background: var(--sb-dark);
+            padding: 22px 18px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.02rem;
+            border-bottom: 2px solid var(--sb-accent);
+            letter-spacing: 0.03em;
+        }
+
+        .sb-nav {
+            display: flex;
+            flex-direction: column;
+            padding: 14px 10px;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .sb-nav a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 13px;
+            color: var(--sb-text);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .sb-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .sb-nav a.active { background: var(--sb-accent); color: #fff; }
+        .sb-nav a.exit { margin-top: auto; color: #f87171; }
+        .sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
+
+        .sb-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+            margin: 8px 10px;
+        }
+
+        /* ─── Content ─── */
+        .content {
+            padding: 26px 30px;
+            display: grid;
+            gap: 18px;
+            align-content: start;
+        }
+
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+        .page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .page-header p { color: var(--muted); font-size: 0.92rem; }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
             border: 0;
-            border-radius: 0;
-            background: transparent;
-            color: #0f766e;
+            border-radius: 9px;
+            padding: 9px 16px;
             font: inherit;
+            font-size: 0.88rem;
             font-weight: 700;
             cursor: pointer;
-            line-height: 1.2;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #fff;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
         }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #e5e7eb; padding: 9px; text-align: left; }
-        .total { margin-top: 12px; font-weight: 700; }
-        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-        .status-pill {
+
+        .btn:hover { opacity: 0.9; }
+
+        .btn-ghost {
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 9px 16px;
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: var(--paper);
+            color: var(--ink);
+            text-decoration: none;
+        }
+
+        .btn-ghost:hover { background: #f8fafc; }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .filter-bar label { font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 4px; }
+
+        input[type="month"], select {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font: inherit;
+            font-size: 0.88rem;
+            color: var(--ink);
+            background: #fff;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+
+        th, td {
+            border: 1px solid var(--line);
+            padding: 9px 10px;
+            font-size: 0.86rem;
+            text-align: left;
+        }
+
+        td.reason-cell {
+            white-space: pre-line;
+            min-width: 260px;
+        }
+
+        th { background: #f8fafc; font-weight: 700; }
+
+        .pill {
             display: inline-flex;
             align-items: center;
             border-radius: 999px;
-            padding: 4px 10px;
-            font-size: 0.78rem;
+            padding: 3px 9px;
+            font-size: 0.76rem;
             font-weight: 700;
         }
-        .status-pill.pending { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; }
-        .status-pill.validated { background: #eff6ff; border: 1px solid #93c5fd; color: #1e40af; }
+
+        .pill-pending   { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+        .pill-validated { background: #ecfdf5; border: 1px solid #86efac; color: #166534; }
+
+        .total-row { font-weight: 700; font-size: 0.95rem; color: var(--ink); }
 
         @media print {
-            .no-print { display: none; }
-            .wrap { border: 0; box-shadow: none; width: 100%; margin: 0; }
+            .no-print { display: none !important; }
+            .layout { display: block; }
+            .sidebar { display: none; }
+            .content { padding: 0; }
+            .panel { border: 0; border-radius: 0; padding: 0; }
+            table { min-width: unset; }
+        }
+
+        @media (max-width: 1100px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .sb-nav { flex-direction: row; flex-wrap: wrap; padding: 10px; }
+            .sb-nav a.exit { margin-top: 0; }
+            .content { padding: 16px; }
         }
     </style>
 </head>
 <body>
-    <main class="wrap">
-        <div class="bar no-print">
-            <h1>Informe mensual oficial</h1>
-            <div class="actions">
-                <a href="{{ url_for('calendar') }}">Volver</a>
-                <button type="button" class="link-btn" onclick="window.print()">Imprimir</button>
-                <a href="{{ url_for('report_pdf', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar PDF</a>
-                <a href="{{ url_for('report_excel', month=month, user_id=selected_user.id if selected_user else None) }}">Descargar Excel</a>
+    <div class="layout {% if not current_user.is_admin %}no-sidebar{% endif %}">
+        {% if current_user.is_admin %}
+        <aside class="sidebar no-print">
+            <div class="sb-brand">&#128737; Panel Administrador</div>
+            <nav class="sb-nav">
+                <a href="{{ url_for('admin_dashboard') }}">&#128202; Inicio</a>
+                <a href="{{ url_for('admin_users') }}">&#128101; Empleados</a>
+                <a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
+                <a class="active" href="{{ url_for('report') }}">&#128203; Informes</a>
+                <a href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
+                <div class="sb-divider"></div>
+                <a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
+            </nav>
+        </aside>
+        {% endif %}
+
+        <main class="content">
+            <div class="page-header">
+                <div>
+                    <h1>Informe mensual oficial</h1>
+                    <p>Empleado: <strong>{{ selected_user.username if selected_user else 'N/D' }}</strong> &nbsp;|&nbsp; Mes: <strong>{{ month }}</strong></p>
+                </div>
+                <div class="actions no-print">
+                    <a class="btn" href="{{ url_for('calendar') }}">Control Horario</a>
+                    <button type="button" class="btn" onclick="window.print()">Imprimir</button>
+                    <a class="btn" href="{{ url_for('report_pdf', month=month, user_id=selected_user.id if selected_user else None) }}">PDF</a>
+                    <a class="btn" href="{{ url_for('report_excel', month=month, user_id=selected_user.id if selected_user else None) }}">Excel</a>
+                </div>
             </div>
-        </div>
 
-        <p>
-            Empleado: <strong>{{ selected_user.username if selected_user else 'N/D' }}</strong>
-            | Mes: <strong>{{ month }}</strong>
-        </p>
-
-        <form method="GET" action="{{ url_for('report') }}" class="no-print">
-            <label for="month">Mes</label>
-            <input id="month" type="month" name="month" value="{{ month }}">
-
-            {% if current_user.is_admin %}
-                <label for="user_id">Empleado</label>
-                <select id="user_id" name="user_id">
-                    {% for user in users %}
-                        <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>{{ user.username }}</option>
-                    {% endfor %}
-                </select>
-            {% endif %}
-
-            <button type="submit">Consultar</button>
-        </form>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Entrada</th>
-                    <th>Inicio comida</th>
-                    <th>Fin comida</th>
-                    <th>Salida</th>
-                    <th>Horas pausa</th>
-                    <th>Horas efectivas</th>
-                    <th>Horas extra</th>
-                    <th>Validadas</th>
+            <div class="panel no-print">
+                <form method="GET" action="{{ url_for('report') }}" class="filter-bar">
+                    <div>
+                        <label for="month">Mes</label>
+                        <input id="month" type="month" name="month" value="{{ month }}">
+                    </div>
                     {% if current_user.is_admin %}
-                    <th>Comentarios</th>
+                    <div>
+                        <label for="user_id">Empleado</label>
+                        <select id="user_id" name="user_id">
+                            {% for user in users %}
+                                <option value="{{ user.id }}" {% if selected_user and selected_user.id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     {% endif %}
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in entries %}
-                    <tr>
-                        <td>{{ item.work_date }}</td>
-                        <td>{{ item.check_in }}</td>
-                        <td>{{ item.meal_start or '-' }}</td>
-                        <td>{{ item.meal_end or '-' }}</td>
-                        <td>{{ item.check_out }}</td>
-                        <td>{{ '%.2f'|format(meal_hours(item)) }}</td>
-                        <td>{{ '%.2f'|format(worked_hours(item)) }}</td>
-                        <td>{{ '%.2f'|format(overtime_hours(item)) }}</td>
-                        <td>
-                            {% if item.overtime_validated %}
-                                <span class="status-pill validated">Validada por Admin</span>
-                            {% else %}
-                                <span class="status-pill pending">Pendiente</span>
-                            {% endif %}
-                        </td>
-                        {% if current_user.is_admin %}
-                        <td>{{ item.comments or '-' }}</td>
-                        {% endif %}
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    <button type="submit" class="btn">Consultar</button>
+                </form>
+            </div>
 
-        <p class="total">Total de horas del mes: {{ total }}</p>
-    </main>
+            <div class="panel">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Horas efectivas</th>
+                                <th>Horas comida</th>
+                                <th>Horas pausa</th>
+                                <th>Horas extra</th>
+                                <th>Estado</th>
+                                <th>Motivos del cambio</th>
+                                {% if current_user.is_admin %}
+                                <th>Comentarios</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in entries %}
+                            <tr>
+                                <td>{{ item.work_date }}</td>
+                                <td>{{ item.check_in }}</td>
+                                <td>{{ item.check_out }}</td>
+                                <td>{{ '%.2f'|format(worked_hours(item)) }}</td>
+                                <td>{{ '%.2f'|format(meal_hours(item)) }}</td>
+                                <td>{{ '%.2f'|format(pause_hours(item)) }}</td>
+                                <td>{{ '%.2f'|format(overtime_hours(item)) }}</td>
+                                <td>
+                                    {% if item.overtime_validated %}
+                                        <span class="pill pill-validated">Validado</span>
+                                    {% else %}
+                                        <span class="pill pill-pending">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td class="reason-cell">{{ change_reasons.get(item.id, '-') }}</td>
+                                {% if current_user.is_admin %}
+                                <td>{{ item.comments or '-' }}</td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="total-row" style="margin-top: 14px;">Total de horas del mes: {{ total }}</p>
+            </div>
+        </main>
+    </div>
 </body>
 </html>

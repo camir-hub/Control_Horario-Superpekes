@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador</title>
+    <style>
+        :root {
+            --sb: #1e293b;
+            --sb-dark: #0f172a;
+            --sb-accent: #ea580c;
+            --sb-text: #94a3b8;
+            --bg: #f0f4f9;
+            --paper: #fff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --accent: #355f87;
+            --accent-2: #2e6fa9;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            background: var(--sb);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sb-brand {
+            background: var(--sb-dark);
+            padding: 22px 18px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.02rem;
+            border-bottom: 2px solid var(--sb-accent);
+            letter-spacing: 0.03em;
+        }
+
+        .sb-nav {
+            display: flex;
+            flex-direction: column;
+            padding: 14px 10px;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .sb-nav a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 13px;
+            color: var(--sb-text);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .sb-nav a:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+        }
+
+        .sb-nav a.active {
+            background: var(--sb-accent);
+            color: #fff;
+        }
+
+        .sb-nav a.exit {
+            margin-top: auto;
+            color: #f87171;
+        }
+
+        .sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
+
+        .sb-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+            margin: 8px 10px;
+        }
+
+        /* ─── Content ─── */
+        .content {
+            padding: 26px 30px;
+            display: grid;
+            gap: 18px;
+            align-content: start;
+        }
+
+        .page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .page-header p { color: var(--muted); font-size: 0.92rem; }
+
+        .flash {
+            border: 1px solid #fed7aa;
+            background: #fff7ed;
+            color: #9a3412;
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-weight: 600;
+        }
+
+        /* metrics */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .metric {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+        }
+
+        .metric span { color: var(--muted); font-size: 0.84rem; }
+        .metric strong { display: block; margin-top: 8px; font-size: 1.5rem; font-weight: 800; }
+
+        /* section access cards */
+        .section-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .sec-card {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 20px;
+            text-decoration: none;
+            color: var(--ink);
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            transition: box-shadow 0.2s, border-color 0.2s;
+        }
+
+        .sec-card:hover {
+            border-color: var(--sb-accent);
+            box-shadow: 0 4px 20px rgba(234,88,12,0.12);
+        }
+
+        .sec-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.45rem;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        }
+
+        .sec-icon.green  { background: linear-gradient(135deg, #16a34a, #15803d); }
+        .sec-icon.orange { background: linear-gradient(135deg, #ea580c, #c2410c); }
+        .sec-icon.purple { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
+
+        .sec-card h3 { margin: 0 0 5px; font-size: 1rem; }
+        .sec-card p  { margin: 0; color: var(--muted); font-size: 0.85rem; line-height: 1.4; }
+
+        /* two-column bottom */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 12px;
+        }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 18px;
+        }
+
+        .panel h2 { font-size: 1.05rem; margin-bottom: 12px; }
+
+        .summary-row {
+            border-bottom: 1px solid var(--line);
+            padding: 9px 0;
+            font-size: 0.9rem;
+        }
+
+        .summary-row:last-child { border-bottom: none; }
+        .summary-row span { color: var(--muted); font-size: 0.8rem; display: block; margin-bottom: 2px; }
+
+        .table-wrap { overflow-x: auto; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 480px; }
+
+        th, td {
+            border: 1px solid var(--line);
+            padding: 9px 10px;
+            font-size: 0.87rem;
+            text-align: left;
+        }
+
+        th { background: #f8fafc; font-weight: 700; }
+
+        /* responsive */
+        @media (max-width: 1100px) {
+            .layout  { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
+            .sb-nav a.exit { margin-top: 0; }
+            .content { padding: 16px; }
+            .metrics { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 720px) {
+            .section-cards { grid-template-columns: 1fr; }
+            .two-col { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sb-brand">&#128737; Panel Administrador</div>
+            <nav class="sb-nav">
+                <a class="active" href="{{ url_for('admin_dashboard') }}">&#128202; Inicio</a>
+                <a href="{{ url_for('admin_users') }}">&#128101; Empleados</a>
+                <a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
+                <a href="{{ url_for('report') }}">&#128203; Informes</a>
+                <a href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
+                <div class="sb-divider"></div>
+                <a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <div class="page-header">
+                <h1>Inicio de administración</h1>
+                <p>Vista general — métricas, acceso a secciones y últimos registros.</p>
+            </div>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="metrics">
+                <div class="metric">
+                    <span>Usuarios totales</span>
+                    <strong>{{ total_users }}</strong>
+                </div>
+                <div class="metric">
+                    <span>Usuarios activos</span>
+                    <strong>{{ active_users }}</strong>
+                </div>
+                <div class="metric">
+                    <span>Empleados</span>
+                    <strong>{{ employee_users }}</strong>
+                </div>
+                <div class="metric">
+                    <span>Registros hoy</span>
+                    <strong>{{ today_entries }}</strong>
+                </div>
+            </div>
+
+            <div class="section-cards">
+                <a class="sec-card" href="{{ url_for('admin_users') }}">
+                    <div class="sec-icon">&#128101;</div>
+                    <div>
+                        <h3>Empleados</h3>
+                        <p>Alta y baja de usuarios, datos personales y tipo de empleo.</p>
+                    </div>
+                </a>
+                <a class="sec-card" href="{{ url_for('admin_company') }}">
+                    <div class="sec-icon green">&#127970;</div>
+                    <div>
+                        <h3>Empresa</h3>
+                        <p>Datos fiscales, domicilio y políticas de la organización.</p>
+                    </div>
+                </a>
+                <a class="sec-card" href="{{ url_for('report') }}">
+                    <div class="sec-icon orange">&#128203;</div>
+                    <div>
+                        <h3>Informes</h3>
+                        <p>Informes mensuales de horas por empleado. Exporta PDF y Excel.</p>
+                    </div>
+                </a>
+                <a class="sec-card" href="{{ url_for('admin_validate_hours') }}">
+                    <div class="sec-icon purple">&#9989;</div>
+                    <div>
+                        <h3>Validar Horas</h3>
+                        <p>Revisa y valida los registros de horas pendientes de aprobación.</p>
+                    </div>
+                </a>
+            </div>
+
+            <div class="two-col">
+                <div class="panel">
+                    <h2>Últimos registros</h2>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Empleado</th>
+                                    <th>Fecha</th>
+                                    <th>Entrada</th>
+                                    <th>Salida</th>
+                                    <th>Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in recent_entries %}
+                                <tr>
+                                    <td>{{ item.user.username if item.user else '-' }}</td>
+                                    <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ item.check_in.strftime('%H:%M') }}</td>
+                                    <td>{{ item.check_out.strftime('%H:%M') }}</td>
+                                    <td>{% if item.overtime_validated %}Validado{% else %}Pendiente{% endif %}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" style="color:#64748b;">Sin registros recientes.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

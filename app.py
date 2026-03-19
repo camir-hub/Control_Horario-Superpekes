@@ -12,6 +12,7 @@ from flask import (
     Flask,
     flash,
     jsonify,
+    make_response,
     redirect,
     render_template,
     request,
@@ -30,6 +31,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from openpyxl import Workbook
+from openpyxl.styles import Alignment
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -59,6 +61,18 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     rol = db.Column(db.String(20), nullable=False, default="employee")
+    first_name = db.Column(db.String(120), nullable=False, default="")
+    last_name = db.Column(db.String(120), nullable=False, default="")
+    tax_id = db.Column(db.String(40), nullable=False, default="")
+    affiliation_number = db.Column(db.String(32), nullable=False, default="")
+    email = db.Column(db.String(150), nullable=False, default="")
+    phone = db.Column(db.String(20), nullable=False, default="")
+    employment_type = db.Column(db.String(30), nullable=False, default="Interno")
+    address = db.Column(db.String(200), nullable=False, default="")
+    postal_code = db.Column(db.String(10), nullable=False, default="")
+    city = db.Column(db.String(100), nullable=False, default="")
+    province = db.Column(db.String(100), nullable=False, default="")
+    country = db.Column(db.String(100), nullable=False, default="")
     active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
@@ -79,8 +93,14 @@ class TimeEntry(db.Model):
     check_in = db.Column(db.Time, nullable=False)
     meal_start = db.Column(db.Time, nullable=True)
     meal_end = db.Column(db.Time, nullable=True)
+    pause_start = db.Column(db.Time, nullable=True)
+    pause_end = db.Column(db.Time, nullable=True)
+    overtime_start = db.Column(db.Time, nullable=True)
+    overtime_end = db.Column(db.Time, nullable=True)
     check_out = db.Column(db.Time, nullable=False)
     comments = db.Column(db.Text, nullable=True)
+    location_latitude = db.Column(db.Float, nullable=True)
+    location_longitude = db.Column(db.Float, nullable=True)
     overtime_validated = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
@@ -106,6 +126,24 @@ class AuditLog(db.Model):
     time_entry = db.relationship("TimeEntry", foreign_keys=[time_entry_id])
 
 
+class CompanyProfile(db.Model):
+    __tablename__ = "company_profile"
+
+    id = db.Column(db.Integer, primary_key=True)
+    company_name = db.Column(db.String(150), nullable=False, default="")
+    tax_id = db.Column(db.String(40), nullable=False, default="")
+    fiscal_address = db.Column(db.String(255), nullable=False, default="")
+    postal_code = db.Column(db.String(20), nullable=False, default="")
+    city = db.Column(db.String(120), nullable=False, default="")
+    province = db.Column(db.String(120), nullable=False, default="")
+    country = db.Column(db.String(120), nullable=False, default="Espana")
+    phone = db.Column(db.String(40), nullable=False, default="")
+    referral_source = db.Column(db.String(120), nullable=False, default="")
+    data_policy_accepted = db.Column(db.Boolean, nullable=False, default=False)
+    processing_manager_accepted = db.Column(db.Boolean, nullable=False, default=False)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -119,6 +157,12 @@ def parse_hhmm(value):
     return datetime.strptime(value, "%H:%M").time()
 
 
+def parse_coordinate(value):
+    if value in (None, ""):
+        return None
+    return round(float(value), 7)
+
+
 def combine_dt(day_value, time_value):
     return datetime.combine(day_value, time_value)
 
@@ -130,14 +174,24 @@ def meal_hours(entry):
     return 0.0
 
 
+def pause_hours(entry):
+    if getattr(entry, "pause_start", None) and getattr(entry, "pause_end", None):
+        delta = combine_dt(entry.work_date, entry.pause_end) - combine_dt(entry.work_date, entry.pause_start)
+        return max(0.0, round(delta.total_seconds() / 3600, 2))
+    return 0.0
+
+
 def worked_hours(entry):
     total = combine_dt(entry.work_date, entry.check_out) - combine_dt(entry.work_date, entry.check_in)
-    worked = total.total_seconds() / 3600 - meal_hours(entry)
+    worked = total.total_seconds() / 3600 - meal_hours(entry) - pause_hours(entry)
     return max(0.0, round(worked, 2))
 
 
 def overtime_hours(entry):
-    return round(max(0.0, worked_hours(entry) - 8.0), 2)
+    if getattr(entry, "overtime_start", None) and getattr(entry, "overtime_end", None):
+        delta = combine_dt(entry.work_date, entry.overtime_end) - combine_dt(entry.work_date, entry.overtime_start)
+        return max(0.0, round(delta.total_seconds() / 3600, 2))
+    return 0.0
 
 
 def week_bounds(day_value):
@@ -164,18 +218,18 @@ def weekly_breakdown_for_user(user_id, day_value):
     ).all()
 
     effective_hours = round(sum(worked_hours(item) for item in entries), 2)
-    pause_hours = round(sum(meal_hours(item) for item in entries), 2)
+    meal_total = round(sum(meal_hours(item) for item in entries), 2)
+    pause_total = round(sum(pause_hours(item) for item in entries), 2)
     overtime_total = round(sum(overtime_hours(item) for item in entries), 2)
-    remaining_hours = round(max(0.0, MAX_WEEKLY_HOURS - effective_hours), 2)
     over_limit_hours = round(max(0.0, effective_hours - MAX_WEEKLY_HOURS), 2)
 
     return {
         "week_start": start,
         "week_end": end,
         "effective_hours": effective_hours,
-        "pause_hours": pause_hours,
+        "meal_hours": meal_total,
+        "pause_hours": pause_total,
         "overtime_hours": overtime_total,
-        "remaining_hours": remaining_hours,
         "over_limit_hours": over_limit_hours,
     }
 
@@ -218,7 +272,7 @@ def can_edit_entry(user, entry):
 def change_reason_required(reason):
     reason = (reason or "").strip()
     if not reason:
-        return "Debes indicar la causa del cambio"
+        return "Debes indicar el motivo del cambio"
     return None
 
 
@@ -247,6 +301,46 @@ def monthly_entries(month, selected_user_id):
     return month_start, month_end, entries
 
 
+def report_context(month):
+    active_user = request_user()
+    selected_user_id = active_user.id
+
+    if active_user.is_admin and request.args.get("user_id"):
+        selected_user_id = int(request.args["user_id"])
+
+    _, _, entries = monthly_entries(month, selected_user_id)
+    change_reasons = latest_change_reasons_for_entries(entries)
+    selected_user = db.session.get(User, selected_user_id)
+
+    return active_user, selected_user_id, selected_user, entries, change_reasons
+
+
+def latest_change_reasons_for_entries(entries):
+    entry_ids = [item.id for item in entries]
+    if not entry_ids:
+        return {}
+
+    logs = (
+        AuditLog.query.filter(
+            AuditLog.time_entry_id.in_(entry_ids),
+            AuditLog.action == "update",
+        )
+        .order_by(AuditLog.time_entry_id.asc(), AuditLog.created_at.asc(), AuditLog.id.asc())
+        .all()
+    )
+
+    reasons_by_entry = {entry_id: [] for entry_id in entry_ids}
+    for log in logs:
+        reason_text = (log.reason or "-").strip() or "-"
+        change_time = log.created_at.strftime("%H:%M") if log.created_at else "--:--"
+        reasons_by_entry.setdefault(log.time_entry_id, []).append(f"{change_time} (h) - {reason_text}")
+
+    return {
+        entry_id: "\n".join(lines) if lines else "-"
+        for entry_id, lines in reasons_by_entry.items()
+    }
+
+
 def serialize_entry(entry):
     return {
         "id": entry.id,
@@ -256,11 +350,18 @@ def serialize_entry(entry):
         "check_in": entry.check_in.strftime("%H:%M"),
         "meal_start": entry.meal_start.strftime("%H:%M") if entry.meal_start else None,
         "meal_end": entry.meal_end.strftime("%H:%M") if entry.meal_end else None,
+        "pause_start": entry.pause_start.strftime("%H:%M") if entry.pause_start else None,
+        "pause_end": entry.pause_end.strftime("%H:%M") if entry.pause_end else None,
+        "overtime_start": entry.overtime_start.strftime("%H:%M") if entry.overtime_start else None,
+        "overtime_end": entry.overtime_end.strftime("%H:%M") if entry.overtime_end else None,
         "check_out": entry.check_out.strftime("%H:%M"),
         "comments": entry.comments or "",
         "meal_hours": meal_hours(entry),
+        "pause_hours": pause_hours(entry),
         "worked_hours": worked_hours(entry),
         "overtime_hours": overtime_hours(entry),
+        "location_latitude": entry.location_latitude,
+        "location_longitude": entry.location_longitude,
         "overtime_validated": entry.overtime_validated,
         "editable": can_edit_entry(request_user(), entry) if (hasattr(request, "api_user") or current_user.is_authenticated) else False,
     }
@@ -278,8 +379,23 @@ def validate_entry_payload(payload):
         check_out = parse_hhmm(payload["check_out"])
         meal_start = parse_hhmm(payload["meal_start"]) if payload.get("meal_start") else None
         meal_end = parse_hhmm(payload["meal_end"]) if payload.get("meal_end") else None
+        pause_start = parse_hhmm(payload["pause_start"]) if payload.get("pause_start") else None
+        pause_end = parse_hhmm(payload["pause_end"]) if payload.get("pause_end") else None
+        overtime_start = parse_hhmm(payload["overtime_start"]) if payload.get("overtime_start") else None
+        overtime_end = parse_hhmm(payload["overtime_end"]) if payload.get("overtime_end") else None
+        location_latitude = parse_coordinate(payload.get("location_latitude"))
+        location_longitude = parse_coordinate(payload.get("location_longitude"))
     except ValueError:
         return "Formato de fecha u hora invalido", None
+
+    if bool(location_latitude is not None) != bool(location_longitude is not None):
+        return "Debes informar latitud y longitud para guardar la geolocalización", None
+
+    if location_latitude is not None and not -90 <= location_latitude <= 90:
+        return "La latitud de geolocalización está fuera de rango", None
+
+    if location_longitude is not None and not -180 <= location_longitude <= 180:
+        return "La longitud de geolocalización está fuera de rango", None
 
     if combine_dt(work_date, check_out) <= combine_dt(work_date, check_in):
         return "La hora de salida debe ser mayor que la de entrada", None
@@ -293,13 +409,48 @@ def validate_entry_payload(payload):
         if combine_dt(work_date, meal_start) < combine_dt(work_date, check_in) or combine_dt(work_date, meal_end) > combine_dt(work_date, check_out):
             return "La comida debe estar dentro de la jornada", None
 
+    if bool(pause_start) != bool(pause_end):
+        return "Debes informar inicio y fin de pausa", None
+
+    if pause_start and pause_end:
+        if combine_dt(work_date, pause_end) <= combine_dt(work_date, pause_start):
+            return "El fin de pausa debe ser mayor que el inicio de pausa", None
+        if combine_dt(work_date, pause_start) < combine_dt(work_date, check_in) or combine_dt(work_date, pause_end) > combine_dt(work_date, check_out):
+            return "La pausa debe estar dentro de la jornada", None
+
+    if bool(overtime_start) != bool(overtime_end):
+        return "Debes informar inicio y fin de horas extra", None
+
+    if overtime_start and overtime_end:
+        if combine_dt(work_date, overtime_end) <= combine_dt(work_date, overtime_start):
+            return "El fin de horas extra debe ser mayor que el inicio de horas extra", None
+        if combine_dt(work_date, overtime_start) < combine_dt(work_date, check_in) or combine_dt(work_date, overtime_end) > combine_dt(work_date, check_out):
+            return "Las horas extra deben estar dentro de la jornada", None
+
+    intervals = [
+        ("comida", meal_start, meal_end),
+        ("pausa", pause_start, pause_end),
+        ("horas extra", overtime_start, overtime_end),
+    ]
+    active_intervals = [(label, start, end) for label, start, end in intervals if start and end]
+    for index, (left_label, left_start, left_end) in enumerate(active_intervals):
+        for right_label, right_start, right_end in active_intervals[index + 1:]:
+            if combine_dt(work_date, left_start) < combine_dt(work_date, right_end) and combine_dt(work_date, right_start) < combine_dt(work_date, left_end):
+                return f"{left_label.capitalize()} y {right_label} no pueden solaparse", None
+
     return None, {
         "work_date": work_date,
         "check_in": check_in,
         "meal_start": meal_start,
         "meal_end": meal_end,
+        "pause_start": pause_start,
+        "pause_end": pause_end,
+        "overtime_start": overtime_start,
+        "overtime_end": overtime_end,
         "check_out": check_out,
         "comments": (payload.get("comments") or "").strip(),
+        "location_latitude": location_latitude,
+        "location_longitude": location_longitude,
     }
 
 
@@ -367,6 +518,72 @@ def ensure_users_password_column_compatibility():
             conn.execute(text("ALTER TABLE users RENAME COLUMN role TO rol"))
 
 
+def ensure_users_profile_columns():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    if "users" not in table_names:
+        return
+
+    columns = {item["name"] for item in inspector.get_columns("users")}
+    missing_columns = []
+    if "first_name" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN first_name VARCHAR(120) NOT NULL DEFAULT ''")
+    if "last_name" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN last_name VARCHAR(120) NOT NULL DEFAULT ''")
+    if "tax_id" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN tax_id VARCHAR(40) NOT NULL DEFAULT ''")
+    if "affiliation_number" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN affiliation_number VARCHAR(32) NOT NULL DEFAULT ''")
+    if "email" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN email VARCHAR(150) NOT NULL DEFAULT ''")
+    if "phone" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NOT NULL DEFAULT ''")
+    if "employment_type" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN employment_type VARCHAR(30) NOT NULL DEFAULT ''")
+    if "address" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN address VARCHAR(200) NOT NULL DEFAULT ''")
+    if "postal_code" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN postal_code VARCHAR(10) NOT NULL DEFAULT ''")
+    if "city" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN city VARCHAR(100) NOT NULL DEFAULT ''")
+    if "province" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN province VARCHAR(100) NOT NULL DEFAULT ''")
+    if "country" not in columns:
+        missing_columns.append("ALTER TABLE users ADD COLUMN country VARCHAR(100) NOT NULL DEFAULT ''")
+
+    if missing_columns:
+        with db.engine.begin() as conn:
+            for statement in missing_columns:
+                conn.execute(text(statement))
+
+
+def ensure_time_entries_geolocation_columns():
+    inspector = inspect(db.engine)
+    table_names = set(inspector.get_table_names())
+    if "time_entries" not in table_names:
+        return
+
+    columns = {item["name"] for item in inspector.get_columns("time_entries")}
+    statements = []
+    if "location_latitude" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN location_latitude FLOAT")
+    if "location_longitude" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN location_longitude FLOAT")
+    if "pause_start" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN pause_start TIME")
+    if "pause_end" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN pause_end TIME")
+    if "overtime_start" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN overtime_start TIME")
+    if "overtime_end" not in columns:
+        statements.append("ALTER TABLE time_entries ADD COLUMN overtime_end TIME")
+
+    if statements:
+        with db.engine.begin() as conn:
+            for statement in statements:
+                conn.execute(text(statement))
+
+
 def ensure_default_admin():
     admin = User.query.filter_by(username="admin").first()
     if admin is None:
@@ -380,12 +597,21 @@ def ensure_default_admin():
         db.session.commit()
 
 
+def get_company_profile():
+    profile = CompanyProfile.query.order_by(CompanyProfile.id.asc()).first()
+    if profile is None:
+        profile = CompanyProfile()
+        db.session.add(profile)
+        db.session.commit()
+    return profile
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for("admin_users"))
-        return redirect(url_for("calendar"))
+    if request.method == "GET" and current_user.is_authenticated:
+        # Fuerza mostrar siempre login al entrar en la web, incluso si el navegador restaura sesión.
+        logout_user()
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -443,7 +669,7 @@ def register():
 def forgot_password():
     if current_user.is_authenticated:
         if current_user.is_admin:
-            return redirect(url_for("admin_users"))
+            return redirect(url_for("admin_dashboard"))
         return redirect(url_for("calendar"))
 
     username = request.form.get("username", "").strip()
@@ -488,11 +714,9 @@ def forgot_password():
 
 @app.route("/admin-login", methods=["GET", "POST"])
 def admin_login():
-    if current_user.is_authenticated:
-        if current_user.is_admin:
-            return redirect(url_for("admin_users"))
-        flash("Acceso Denegado")
-        return redirect(url_for("calendar"))
+    if request.method == "GET" and current_user.is_authenticated:
+        # Evita entrar directamente al panel admin al reabrir navegador con sesión restaurada.
+        logout_user()
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -505,7 +729,7 @@ def admin_login():
 
         if user and user.active and user.is_admin and check_password_hash(user.password_hash, password):
             login_user(user)
-            return redirect(url_for("admin_users"))
+            return redirect(url_for("admin_dashboard"))
 
         flash("Credenciales de administrador inválidas", "admin_login")
         return render_template("admin_login.html", mode="login")
@@ -517,7 +741,7 @@ def admin_login():
 def admin_forgot_password():
     if current_user.is_authenticated:
         if current_user.is_admin:
-            return redirect(url_for("admin_users"))
+            return redirect(url_for("admin_dashboard"))
         flash("Acceso denegado", "login")
         return redirect(url_for("calendar"))
 
@@ -566,10 +790,15 @@ def admin_forgot_password():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for("login"))
+    return redirect(url_for("home"))
 
 
 @app.route("/")
+def home():
+    return redirect(url_for("login"))
+
+
+@app.route("/calendar")
 @login_required
 def calendar():
     day_value = date.today()
@@ -583,12 +812,22 @@ def calendar():
     users = []
 
     if current_user.is_admin:
-        users = User.query.order_by(User.username.asc()).all()
+        users = User.query.filter_by(rol="employee").order_by(User.username.asc()).all()
+
         if request.args.get("user_id"):
             try:
-                selected_user_id = int(request.args["user_id"])
+                requested_user_id = int(request.args["user_id"])
+                if any(user.id == requested_user_id for user in users):
+                    selected_user_id = requested_user_id
+                elif users:
+                    selected_user_id = users[0].id
+                    flash("Empleado invalido")
             except ValueError:
                 flash("Empleado invalido")
+                if users:
+                    selected_user_id = users[0].id
+        elif users:
+            selected_user_id = users[0].id
 
     # Monthly bounds
     month_start = day_value.replace(day=1)
@@ -623,10 +862,14 @@ def calendar():
             "check_out": entry.check_out.strftime("%H:%M") if entry.check_out else "",
             "meal_start": entry.meal_start.strftime("%H:%M") if entry.meal_start else "",
             "meal_end": entry.meal_end.strftime("%H:%M") if entry.meal_end else "",
+            "pause_start": entry.pause_start.strftime("%H:%M") if entry.pause_start else "",
+            "pause_end": entry.pause_end.strftime("%H:%M") if entry.pause_end else "",
+            "overtime_start": entry.overtime_start.strftime("%H:%M") if entry.overtime_start else "",
+            "overtime_end": entry.overtime_end.strftime("%H:%M") if entry.overtime_end else "",
             "meal_hours": round(meal_hours(entry), 2),
+            "pause_hours": round(pause_hours(entry), 2),
             "worked_hours": round(worked_hours(entry), 2),
             "overtime_hours": round(overtime_hours(entry), 2),
-            "overtime_validated": bool(entry.overtime_validated),
             "comments": entry.comments or "",
             "editable": can_edit_entry(current_user, entry),
         }
@@ -649,9 +892,9 @@ def calendar():
         selected_entry=selected_entry,
         allow_entry_edit=allow_entry_edit,
         weekly_total=weekly_stats["effective_hours"],
+        weekly_meal_total=weekly_stats["meal_hours"],
         weekly_pause_total=weekly_stats["pause_hours"],
         weekly_overtime_total=weekly_stats["overtime_hours"],
-        weekly_remaining_hours=weekly_stats["remaining_hours"],
         weekly_over_limit_hours=weekly_stats["over_limit_hours"],
         week_start=weekly_stats["week_start"],
         week_end=weekly_stats["week_end"],
@@ -660,6 +903,7 @@ def calendar():
         worked_hours=worked_hours,
         overtime_hours=overtime_hours,
         meal_hours=meal_hours,
+        pause_hours=pause_hours,
         month_entries_dict=month_entries_dict,
     )
 
@@ -672,8 +916,14 @@ def add_entry():
         "check_in": request.form.get("check_in"),
         "meal_start": request.form.get("meal_start"),
         "meal_end": request.form.get("meal_end"),
+        "pause_start": request.form.get("pause_start"),
+        "pause_end": request.form.get("pause_end"),
+        "overtime_start": request.form.get("overtime_start"),
+        "overtime_end": request.form.get("overtime_end"),
         "check_out": request.form.get("check_out"),
         "comments": request.form.get("comments"),
+        "location_latitude": request.form.get("location_latitude"),
+        "location_longitude": request.form.get("location_longitude"),
     }
 
     error, normalized = validate_entry_payload(payload)
@@ -701,8 +951,14 @@ def add_entry():
         check_in=normalized["check_in"],
         meal_start=normalized["meal_start"],
         meal_end=normalized["meal_end"],
+        pause_start=normalized["pause_start"],
+        pause_end=normalized["pause_end"],
+        overtime_start=normalized["overtime_start"],
+        overtime_end=normalized["overtime_end"],
         check_out=normalized["check_out"],
         comments=normalized["comments"],
+        location_latitude=normalized["location_latitude"],
+        location_longitude=normalized["location_longitude"],
     )
 
     projected = weekly_hours_for_user(target_user_id, normalized["work_date"]) + worked_hours(candidate)
@@ -751,8 +1007,14 @@ def update_entry(entry_id):
         "check_in": request.form.get("check_in"),
         "meal_start": request.form.get("meal_start"),
         "meal_end": request.form.get("meal_end"),
+        "pause_start": request.form.get("pause_start"),
+        "pause_end": request.form.get("pause_end"),
+        "overtime_start": request.form.get("overtime_start"),
+        "overtime_end": request.form.get("overtime_end"),
         "check_out": request.form.get("check_out"),
         "comments": request.form.get("comments"),
+        "location_latitude": request.form.get("location_latitude"),
+        "location_longitude": request.form.get("location_longitude"),
     }
     error, normalized = validate_entry_payload(payload)
     if error:
@@ -766,8 +1028,14 @@ def update_entry(entry_id):
         check_in=normalized["check_in"],
         meal_start=normalized["meal_start"],
         meal_end=normalized["meal_end"],
+        pause_start=normalized["pause_start"],
+        pause_end=normalized["pause_end"],
+        overtime_start=normalized["overtime_start"],
+        overtime_end=normalized["overtime_end"],
         check_out=normalized["check_out"],
         comments=normalized["comments"],
+        location_latitude=normalized["location_latitude"],
+        location_longitude=normalized["location_longitude"],
     )
     projected = original_week_hours + worked_hours(updated_candidate)
     if projected > MAX_WEEKLY_HOURS:
@@ -778,8 +1046,14 @@ def update_entry(entry_id):
     entry.check_in = normalized["check_in"]
     entry.meal_start = normalized["meal_start"]
     entry.meal_end = normalized["meal_end"]
+    entry.pause_start = normalized["pause_start"]
+    entry.pause_end = normalized["pause_end"]
+    entry.overtime_start = normalized["overtime_start"]
+    entry.overtime_end = normalized["overtime_end"]
     entry.check_out = normalized["check_out"]
     entry.comments = normalized["comments"]
+    entry.location_latitude = normalized["location_latitude"]
+    entry.location_longitude = normalized["location_longitude"]
     entry.overtime_validated = False
 
     create_audit_log(
@@ -807,6 +1081,10 @@ def reset_user_password(user_id):
     user = db.session.get(User, user_id)
     if not user:
         flash("Usuario no encontrado")
+        return redirect(url_for("admin_users"))
+
+    if user.rol != "employee":
+        flash("Solo se pueden gestionar empleados desde esta sección")
         return redirect(url_for("admin_users"))
 
     new_password = request.form.get("new_password", "")
@@ -837,11 +1115,81 @@ def reset_user_password(user_id):
     return redirect(url_for("admin_users"))
 
 
-@app.route("/admin/users", methods=["GET", "POST"])
-def admin_users():
-    if not current_user.is_authenticated:
-        return redirect(url_for("admin_login"))
+@app.route("/admin", methods=["GET"])
+@login_required
+def admin_dashboard():
+    if not current_user.is_admin:
+        flash("Acceso denegado")
+        return redirect(url_for("calendar"))
 
+    users = User.query.order_by(User.username.asc()).all()
+    total_users = len(users)
+    active_users = sum(1 for user in users if user.active)
+    employee_users = sum(1 for user in users if user.rol == "employee")
+    today_entries = TimeEntry.query.filter(TimeEntry.work_date == date.today()).count()
+    recent_entries = (
+        TimeEntry.query.order_by(TimeEntry.created_at.desc())
+        .limit(8)
+        .all()
+    )
+
+    return render_template(
+        "admin_dashboard.html",
+        total_users=total_users,
+        active_users=active_users,
+        employee_users=employee_users,
+        today_entries=today_entries,
+        recent_entries=recent_entries,
+    )
+
+
+@app.route("/admin/company", methods=["GET", "POST"])
+@login_required
+def admin_company():
+    if not current_user.is_admin:
+        flash("Acceso denegado")
+        return redirect(url_for("calendar"))
+
+    profile = get_company_profile()
+
+    if request.method == "POST":
+        profile.company_name = (request.form.get("company_name") or "").strip()
+        profile.tax_id = (request.form.get("tax_id") or "").strip()
+        profile.fiscal_address = (request.form.get("fiscal_address") or "").strip()
+        profile.postal_code = (request.form.get("postal_code") or "").strip()
+        profile.city = (request.form.get("city") or "").strip()
+        profile.province = (request.form.get("province") or "").strip()
+        profile.country = (request.form.get("country") or "").strip() or "Espana"
+        profile.phone = (request.form.get("phone") or "").strip()
+        profile.referral_source = (request.form.get("referral_source") or "").strip()
+        profile.data_policy_accepted = bool(request.form.get("data_policy_accepted"))
+        profile.processing_manager_accepted = bool(request.form.get("processing_manager_accepted"))
+
+        create_audit_log(
+            actor_user_id=current_user.id,
+            entity_type="company_profile",
+            entity_id=profile.id,
+            action="update",
+            reason="Actualizacion de datos de empresa",
+            details=f"Empresa={profile.company_name}; CIF={profile.tax_id}; Ciudad={profile.city}",
+        )
+        db.session.commit()
+        flash("Datos de empresa guardados correctamente")
+        return redirect(url_for("admin_company"))
+
+    users = User.query.order_by(User.username.asc()).all()
+    return render_template(
+        "admin_company.html",
+        profile=profile,
+        total_users=len(users),
+        active_users=sum(1 for user in users if user.active),
+        employee_users=sum(1 for user in users if user.rol == "employee"),
+    )
+
+
+@app.route("/admin/users", methods=["GET", "POST"])
+@login_required
+def admin_users():
     if not current_user.is_admin:
         flash("Acceso denegado")
         return redirect(url_for("calendar"))
@@ -849,14 +1197,32 @@ def admin_users():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        rol = request.form.get("rol") or request.form.get("role", "employee")
+        first_name = request.form.get("first_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        tax_id = request.form.get("tax_id", "").strip()
+        affiliation_number = request.form.get("affiliation_number", "").strip()
+        email = request.form.get("email", "").strip()
+        phone = request.form.get("phone", "").strip()
+        employment_type = "Interno"
+        address = request.form.get("address", "").strip()
+        postal_code = request.form.get("postal_code", "").strip()
+        city = request.form.get("city", "").strip()
+        province = request.form.get("province", "").strip()
+        country = request.form.get("country", "España").strip() or "España"
+        rol = "employee"
 
+        # Validar campos obligatorios
         if not username or not password:
             flash("Usuario y password son obligatorios")
             return redirect(url_for("admin_users"))
-
-        if rol not in {"employee", "admin"}:
-            flash("Rol invalido")
+        if not first_name or not last_name or not tax_id or not affiliation_number or not email:
+            flash("Nombre, Apellidos, CIF/NIF/DNI, Nº Afiliación y Correo son obligatorios")
+            return redirect(url_for("admin_users"))
+        if any(char.isspace() for char in tax_id):
+            flash("El CIF/NIF/DNI no puede contener espacios")
+            return redirect(url_for("admin_users"))
+        if not address or not postal_code or not city or not province or not country:
+            flash("Dirección, Código postal, Ciudad, Provincia y País son obligatorios")
             return redirect(url_for("admin_users"))
 
         password_error = validate_password_strength(password)
@@ -871,6 +1237,18 @@ def admin_users():
         user = User(
             username=username,
             password_hash=generate_password_hash(password),
+            first_name=first_name,
+            last_name=last_name,
+            tax_id=tax_id,
+            affiliation_number=affiliation_number,
+            email=email,
+            phone=phone,
+            employment_type=employment_type,
+            address=address,
+            postal_code=postal_code,
+            city=city,
+            province=province,
+            country=country,
             rol=rol,
             active=True,
         )
@@ -889,9 +1267,12 @@ def admin_users():
         flash("Usuario creado")
         return redirect(url_for("admin_users"))
 
-    users = User.query.order_by(User.username.asc()).all()
-    weekly_totals = {user.id: weekly_hours_for_user(user.id, date.today()) for user in users}
-    return render_template("admin_users.html", users=users, audit_logs=latest_audit_logs(), weekly_totals=weekly_totals)
+    users = User.query.filter_by(rol="employee").order_by(User.username.asc()).all()
+    response = make_response(render_template("admin_users.html", users=users))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.route("/admin/users/<int:user_id>/toggle", methods=["POST"])
@@ -904,6 +1285,10 @@ def toggle_user(user_id):
     user = db.session.get(User, user_id)
     if not user:
         flash("Usuario no encontrado")
+        return redirect(url_for("admin_users"))
+
+    if user.rol != "employee":
+        flash("Solo se pueden gestionar empleados desde esta sección")
         return redirect(url_for("admin_users"))
 
     if user.id == current_user.id:
@@ -931,111 +1316,9 @@ def toggle_user(user_id):
     return redirect(url_for("admin_users"))
 
 
-@app.route("/admin/validate/<int:entry_id>", methods=["POST"])
+@app.route("/admin/validate-hours", methods=["GET"])
 @login_required
-def validate_overtime(entry_id):
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
-
-    entry = db.session.get(TimeEntry, entry_id)
-    if not entry:
-        flash("Registro no encontrado")
-        return redirect(url_for("calendar"))
-
-    entry.overtime_validated = True
-    create_audit_log(
-        actor_user_id=current_user.id,
-        target_user_id=entry.user_id,
-        time_entry_id=entry.id,
-        entity_type="time_entry",
-        entity_id=entry.id,
-        action="validate_overtime",
-        reason="Validación administrativa del registro",
-        details=f"Registro validado. Horas extra detectadas: {overtime_hours(entry):.2f}",
-    )
-    db.session.commit()
-    flash("Registro validado")
-
-    return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
-
-
-@app.route("/admin/validate-month", methods=["POST"])
-@login_required
-def validate_month_entries():
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
-
-    month = (request.form.get("month") or "").strip()
-    day_ref = (request.form.get("day") or date.today().isoformat()).strip()
-    user_id_raw = (request.form.get("user_id") or "").strip()
-
-    try:
-        month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
-    except ValueError:
-        flash("Mes invalido")
-        return redirect(url_for("calendar"))
-
-    try:
-        selected_day = parse_iso_date(day_ref)
-    except ValueError:
-        selected_day = month_start
-
-    try:
-        target_user_id = int(user_id_raw)
-    except ValueError:
-        flash("Empleado invalido")
-        return redirect(url_for("calendar", day=selected_day.isoformat()))
-
-    target_user = db.session.get(User, target_user_id)
-    if not target_user:
-        flash("Usuario no encontrado")
-        return redirect(url_for("calendar", day=selected_day.isoformat()))
-
-    if month_start.month == 12:
-        month_end_exclusive = month_start.replace(year=month_start.year + 1, month=1, day=1)
-    else:
-        month_end_exclusive = month_start.replace(month=month_start.month + 1, day=1)
-
-    entries = (
-        TimeEntry.query.filter(
-            TimeEntry.user_id == target_user_id,
-            TimeEntry.work_date >= month_start,
-            TimeEntry.work_date < month_end_exclusive,
-            TimeEntry.overtime_validated.is_(False),
-        )
-        .order_by(TimeEntry.work_date.asc())
-        .all()
-    )
-
-    if not entries:
-        flash("No hay registros pendientes de validacion en este mes")
-        return redirect(url_for("calendar", user_id=target_user_id, day=selected_day.isoformat()))
-
-    validated_count = 0
-    for entry in entries:
-        entry.overtime_validated = True
-        validated_count += 1
-
-    create_audit_log(
-        actor_user_id=current_user.id,
-        target_user_id=target_user_id,
-        entity_type="time_entry",
-        action="validate_overtime_bulk",
-        reason="Validacion administrativa masiva",
-        details=f"Validados {validated_count} registros del mes {month} para {target_user.username}",
-    )
-    db.session.commit()
-    flash(f"Se validaron {validated_count} registros del mes")
-    return redirect(url_for("calendar", user_id=target_user_id, day=selected_day.isoformat()))
-
-
-@app.route("/admin/validate-entries", methods=["GET"])
-@login_required
-def admin_validate_entries():
-    if not current_user.is_authenticated:
-        return redirect(url_for("admin_login"))
+def admin_validate_hours():
     if not current_user.is_admin:
         flash("Acceso denegado")
         return redirect(url_for("calendar"))
@@ -1063,11 +1346,12 @@ def admin_validate_entries():
     )
 
     return render_template(
-        "validate_entries.html",
+        "validate_hours.html",
         entries=entries,
         month=month,
         worked_hours=worked_hours,
         meal_hours=meal_hours,
+        pause_hours=pause_hours,
         overtime_hours=overtime_hours,
     )
 
@@ -1075,8 +1359,6 @@ def admin_validate_entries():
 @app.route("/admin/toggle-validation/<int:entry_id>", methods=["POST"])
 @login_required
 def toggle_validation(entry_id):
-    if not current_user.is_authenticated:
-        return redirect(url_for("admin_login"))
     if not current_user.is_admin:
         return jsonify({"error": "Acceso denegado"}), 403
 
@@ -1110,16 +1392,9 @@ def toggle_validation(entry_id):
 @login_required
 def report():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user = request_user()
-    selected_user_id = active_user.id
-
-    if active_user.is_admin and request.args.get("user_id"):
-        selected_user_id = int(request.args["user_id"])
-
-    _, _, entries = monthly_entries(month, selected_user_id)
+    active_user, selected_user_id, selected_user, entries, change_reasons = report_context(month)
 
     users = User.query.order_by(User.username.asc()).all() if active_user.is_admin else []
-    selected_user = db.session.get(User, selected_user_id)
 
     total = round(sum(worked_hours(item) for item in entries), 2)
 
@@ -1129,10 +1404,12 @@ def report():
         users=users,
         selected_user=selected_user,
         entries=entries,
+        change_reasons=change_reasons,
         total=total,
         worked_hours=worked_hours,
         overtime_hours=overtime_hours,
         meal_hours=meal_hours,
+        pause_hours=pause_hours,
     )
 
 
@@ -1140,13 +1417,7 @@ def report():
 @login_required
 def report_excel():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user = request_user()
-    selected_user_id = active_user.id
-
-    if active_user.is_admin and request.args.get("user_id"):
-        selected_user_id = int(request.args["user_id"])
-
-    _, _, entries = monthly_entries(month, selected_user_id)
+    active_user, selected_user_id, _selected_user, entries, change_reasons = report_context(month)
     show_comments = active_user.is_admin
 
     workbook = Workbook()
@@ -1155,13 +1426,13 @@ def report_excel():
     headers = [
         "Fecha",
         "Entrada",
-        "Inicio comida",
-        "Fin comida",
         "Salida",
+        "Horas efectivas",
         "Horas comida",
-        "Horas netas",
+        "Horas pausa",
         "Horas extra",
-        "Validadas",
+        "Estado",
+        "Motivos del cambio",
     ]
     if show_comments:
         headers.append("Comentarios")
@@ -1171,17 +1442,21 @@ def report_excel():
         row = [
             item.work_date.isoformat(),
             item.check_in.strftime("%H:%M"),
-            item.meal_start.strftime("%H:%M") if item.meal_start else "",
-            item.meal_end.strftime("%H:%M") if item.meal_end else "",
             item.check_out.strftime("%H:%M"),
-            meal_hours(item),
             worked_hours(item),
+            meal_hours(item),
+            pause_hours(item),
             overtime_hours(item),
-            "SI" if item.overtime_validated else "NO",
+            "VALIDADO" if item.overtime_validated else "PENDIENTE",
+            change_reasons.get(item.id, "-"),
         ]
         if show_comments:
             row.append(item.comments or "")
         sheet.append(row)
+
+    cause_col = headers.index("Motivos del cambio") + 1
+    for row_idx in range(2, len(entries) + 2):
+        sheet.cell(row=row_idx, column=cause_col).alignment = Alignment(wrap_text=True, vertical="top")
 
     output = io.BytesIO()
     workbook.save(output)
@@ -1195,16 +1470,8 @@ def report_excel():
 @login_required
 def report_pdf():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user = request_user()
-    selected_user_id = active_user.id
-
-    if active_user.is_admin and request.args.get("user_id"):
-        selected_user_id = int(request.args["user_id"])
-
-    _, _, entries = monthly_entries(month, selected_user_id)
+    active_user, selected_user_id, selected_user, entries, change_reasons = report_context(month)
     show_comments = active_user.is_admin
-
-    selected_user = db.session.get(User, selected_user_id)
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
@@ -1225,39 +1492,49 @@ def report_pdf():
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawString(40, current_y, "Fecha")
         pdf.drawString(105, current_y, "Entrada")
-        pdf.drawString(160, current_y, "Comida")
-        pdf.drawString(250, current_y, "Salida")
-        pdf.drawString(305, current_y, "Neto")
-        pdf.drawString(350, current_y, "Extra")
-        pdf.drawString(395, current_y, "Validada")
+        pdf.drawString(155, current_y, "Salida")
+        pdf.drawString(205, current_y, "Efectivas")
+        pdf.drawString(260, current_y, "H. comida")
+        pdf.drawString(320, current_y, "Pausa")
+        pdf.drawString(360, current_y, "Extra")
+        pdf.drawString(398, current_y, "Estado")
+        pdf.drawString(442, current_y, "Motivos")
         if show_comments:
-            pdf.drawString(450, current_y, "Comentario")
+            pdf.drawString(523, current_y, "Comentario")
         return current_y - 14
 
     y = draw_pdf_table_header(y)
 
     pdf.setFont("Helvetica", 9)
     for item in entries:
-        if y < 60:
+        reason_lines = (change_reasons.get(item.id, "-") or "-").splitlines()
+        if not reason_lines:
+            reason_lines = ["-"]
+
+        needed_height = max(13, len(reason_lines) * 10)
+        if y - needed_height < 60:
             pdf.showPage()
             y = height - 50
             y = draw_pdf_table_header(y)
             pdf.setFont("Helvetica", 9)
 
-        meal_text = "-"
-        if item.meal_start and item.meal_end:
-            meal_text = f"{item.meal_start.strftime('%H:%M')}-{item.meal_end.strftime('%H:%M')}"
-
         pdf.drawString(40, y, item.work_date.isoformat())
         pdf.drawString(105, y, item.check_in.strftime("%H:%M"))
-        pdf.drawString(160, y, meal_text)
-        pdf.drawString(250, y, item.check_out.strftime("%H:%M"))
-        pdf.drawString(305, y, f"{worked_hours(item):.2f}")
-        pdf.drawString(350, y, f"{overtime_hours(item):.2f}")
-        pdf.drawString(395, y, "SI" if item.overtime_validated else "NO")
+        pdf.drawString(155, y, item.check_out.strftime("%H:%M"))
+        pdf.drawString(205, y, f"{worked_hours(item):.2f}")
+        pdf.drawString(260, y, f"{meal_hours(item):.2f}")
+        pdf.drawString(320, y, f"{pause_hours(item):.2f}")
+        pdf.drawString(360, y, f"{overtime_hours(item):.2f}")
+        pdf.drawString(398, y, "VALIDADO" if item.overtime_validated else "PENDIENTE")
+
+        line_y = y
+        for line in reason_lines:
+            pdf.drawString(442, line_y, line[:30])
+            line_y -= 10
+
         if show_comments:
-            pdf.drawString(450, y, (item.comments or "-")[:30])
-        y -= 13
+            pdf.drawString(523, y, (item.comments or "-")[:16])
+        y -= needed_height
 
     pdf.save()
     buffer.seek(0)
@@ -1482,6 +1759,8 @@ def api_entries_create():
         meal_end=normalized["meal_end"],
         check_out=normalized["check_out"],
         comments=normalized["comments"],
+        location_latitude=normalized["location_latitude"],
+        location_longitude=normalized["location_longitude"],
     )
 
     projected = weekly_hours_for_user(target_user_id, normalized["work_date"]) + worked_hours(candidate)
@@ -1541,6 +1820,8 @@ def api_entry_update(entry_id):
         meal_end=normalized["meal_end"],
         check_out=normalized["check_out"],
         comments=normalized["comments"],
+        location_latitude=normalized["location_latitude"],
+        location_longitude=normalized["location_longitude"],
     )
     projected = original_week_hours + worked_hours(updated_candidate)
     if projected > MAX_WEEKLY_HOURS:
@@ -1552,6 +1833,8 @@ def api_entry_update(entry_id):
     entry.meal_end = normalized["meal_end"]
     entry.check_out = normalized["check_out"]
     entry.comments = normalized["comments"]
+    entry.location_latitude = normalized["location_latitude"]
+    entry.location_longitude = normalized["location_longitude"]
     entry.overtime_validated = False
     create_audit_log(
         actor_user_id=api_user.id,
@@ -1648,6 +1931,8 @@ def api_report_pdf():
 with app.app_context():
     db.create_all()
     ensure_users_password_column_compatibility()
+    ensure_users_profile_columns()
+    ensure_time_entries_geolocation_columns()
     ensure_default_admin()
 
 

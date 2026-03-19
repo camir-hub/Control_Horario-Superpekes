@@ -3,125 +3,304 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Administrador</title>
+    <title>Empleados | Admin</title>
     <style>
-        body { margin: 0; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #111827; }
-        .wrap { width: min(1020px, 95vw); margin: 24px auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px; }
-        .top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-        .top a { color: #0f766e; text-decoration: none; font-weight: 700; }
-        .messages { margin: 10px 0; padding: 10px; border-radius: 10px; border: 1px solid #fed7aa; background: #fff7ed; color: #9a3412; }
-        form { display: grid; gap: 8px; max-width: 430px; }
-        input, select, button { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; }
-        button { border: 0; background: #0f766e; color: #fff; font-weight: 700; cursor: pointer; }
-        .secondary { background: #1f2937; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th, td { border: 1px solid #e5e7eb; text-align: left; padding: 10px; }
-        .inline { display: inline; }
-        .grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 18px; }
-        .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; }
-        .hint { color: #64748b; font-size: 0.9rem; }
-        .logs { max-height: 560px; overflow: auto; }
-        .log { border-bottom: 1px solid #e5e7eb; padding: 10px 0; }
-        .actions { display: grid; gap: 8px; }
-        .actions a { text-decoration: none; color: #0f766e; font-weight: 700; }
-        .small { font-size: 0.85rem; color: #64748b; }
-
-        @media (max-width: 980px) {
-            .grid { grid-template-columns: 1fr; }
+        :root {
+            --sb: #1e293b;
+            --sb-dark: #0f172a;
+            --sb-accent: #ea580c;
+            --sb-text: #94a3b8;
+            --bg: #f0f4f9;
+            --paper: #fff;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --accent: #355f87;
+            --accent-2: #2e6fa9;
         }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            min-height: 100vh;
+        }
+
+        /* ─── Sidebar ─── */
+        .sidebar {
+            background: var(--sb);
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sb-brand {
+            background: var(--sb-dark);
+            padding: 22px 18px;
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.02rem;
+            border-bottom: 2px solid var(--sb-accent);
+            letter-spacing: 0.03em;
+        }
+
+        .sb-nav {
+            display: flex;
+            flex-direction: column;
+            padding: 14px 10px;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .sb-nav a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 13px;
+            color: var(--sb-text);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .sb-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .sb-nav a.active { background: var(--sb-accent); color: #fff; }
+        .sb-nav a.exit { margin-top: auto; color: #f87171; }
+        .sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
+
+        .sb-divider {
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+            margin: 8px 10px;
+        }
+
+        /* ─── Content ─── */
+        .content {
+            padding: 26px 30px;
+            display: grid;
+            gap: 18px;
+            align-content: start;
+        }
+
+        .page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .page-header p { color: var(--muted); font-size: 0.92rem; }
+
+        .flash {
+            border: 1px solid #fed7aa;
+            background: #fff7ed;
+            color: #9a3412;
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-weight: 600;
+        }
+
+        .panel {
+            background: var(--paper);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 22px;
+        }
+
+        .panel h2 { font-size: 1.08rem; margin-bottom: 6px; }
+        .hint { color: var(--muted); font-size: 0.87rem; margin-bottom: 12px; line-height: 1.4; }
+
+        .form-grid { display: grid; gap: 10px; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+        input, select {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 9px;
+            padding: 10px 12px;
+            font: inherit;
+            color: var(--ink);
+            background: #fff;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(53,95,135,0.12);
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 9px;
+            padding: 11px 18px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #fff;
+            width: 100%;
+        }
+
+        .btn:hover { opacity: 0.9; }
+
+        .btn-danger {
+            border: 0;
+            border-radius: 6px;
+            padding: 6px 11px;
+            font: inherit;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--sb-accent), #c2410c);
+            color: #fff;
+        }
+
+        .table-wrap { overflow-x: auto; margin-top: 16px; }
+
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+
+        th, td {
+            border: 1px solid var(--line);
+            padding: 9px 10px;
+            font-size: 0.87rem;
+            text-align: left;
+        }
+
+        th { background: #f8fafc; font-weight: 700; }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+        }
+
+        .badge-on  { background: #dcfce7; color: #166534; }
+        .badge-off { background: #f1f5f9; color: #64748b; }
+
+        .dim { font-size: 0.82rem; color: var(--muted); }
+
+        @media (max-width: 1100px) {
+            .layout  { grid-template-columns: 1fr; }
+            .sidebar { position: static; height: auto; }
+            .sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
+            .sb-nav a.exit { margin-top: 0; }
+            .content { padding: 16px; }
+        }
+
+        @media (max-width: 640px) { .row-2 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
-    <div class="wrap">
-        <div class="top">
-            <h1>Panel de usuarios</h1>
-            <div style="display: flex; gap: 12px;">
-                <a href="{{ url_for('admin_validate_entries') }}" style="background: #ea580c; padding: 8px 16px; border-radius: 8px; text-decoration: none; color: #fff; font-weight: 700;">Validar Horas</a>
-                <a href="{{ url_for('calendar') }}">Volver al calendario</a>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sb-brand">&#128737; Panel Administrador</div>
+            <nav class="sb-nav">
+                <a href="{{ url_for('admin_dashboard') }}">&#128202; Inicio</a>
+                <a class="active" href="{{ url_for('admin_users') }}">&#128101; Empleados</a>
+                <a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
+                <a href="{{ url_for('report') }}">&#128203; Informes</a>
+                <a href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
+                <div class="sb-divider"></div>
+                <a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <div class="page-header">
+                <h1>Empleados</h1>
+                <p>Alta de usuarios, datos personales y gestión del estado del empleado.</p>
             </div>
-        </div>
 
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="messages">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="flash">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
-        <div class="grid">
-            <section class="card">
+            <div class="panel">
                 <h2>Alta de usuario</h2>
                 <p class="hint">La contraseña debe ser robusta: 10+ caracteres, mayúscula, minúscula, número y símbolo.</p>
-                <form method="POST" action="{{ url_for('admin_users') }}">
-                    <input type="text" name="username" placeholder="Usuario" required>
-                    <input type="password" name="password" placeholder="Password segura" required>
-                    <select name="rol" required>
-                        <option value="employee" selected>Empleado</option>
-                        <option value="admin">Administrador</option>
-                    </select>
-                    <button type="submit">Crear usuario</button>
-                </form>
-
-                <h2>Altas y bajas</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Usuario</th>
-                            <th>Rol</th>
-                            <th>Horas semana</th>
-                            <th>Estado</th>
-                            <th>Accion</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user in users %}
-                            <tr>
-                                <td>{{ user.username }}</td>
-                                <td>{{ user.rol }}</td>
-                                <td>{{ weekly_totals[user.id] }} h</td>
-                                <td>{% if user.active %}Activo{% else %}Inactivo{% endif %}</td>
-                                <td>
-                                    <div class="actions">
-                                        <a href="{{ url_for('calendar', user_id=user.id) }}">Abrir calendario</a>
-                                        <a href="{{ url_for('report', user_id=user.id) }}">Abrir informe</a>
-
-                                        {% if user.id != current_user.id %}
-                                            <form method="POST" action="{{ url_for('toggle_user', user_id=user.id) }}">
-                                                <input type="text" name="change_reason" placeholder="Motivo de alta/baja" required>
-                                                <button type="submit">{% if user.active %}Dar de baja{% else %}Dar de alta{% endif %}</button>
-                                            </form>
-
-                                            <form method="POST" action="{{ url_for('reset_user_password', user_id=user.id) }}">
-                                                <input type="password" name="new_password" placeholder="Nueva contraseña segura" required>
-                                                <input type="text" name="change_reason" placeholder="Motivo del reinicio" required>
-                                                <button type="submit" class="secondary">Reiniciar contraseña</button>
-                                            </form>
-                                        {% else %}
-                                            <span class="small">Sesión actual</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </section>
-
-            <aside class="card logs">
-                <h2>Auditoría reciente</h2>
-                {% for log in audit_logs %}
-                    <div class="log">
-                        <strong>{{ log.action }}</strong> sobre {{ log.entity_type }} #{{ log.entity_id or '-' }}<br>
-                        <span class="hint">Actor {{ log.actor_user.username if log.actor_user else log.actor_user_id }} | {{ log.created_at.strftime('%d/%m/%Y %H:%M') }}</span><br>
-                        <span>Causa: {{ log.reason }}</span><br>
-                        <span class="hint">{{ log.details }}</span>
+                <form method="POST" action="{{ url_for('admin_users') }}" class="form-grid">
+                    <div class="row-2">
+                        <input type="text" name="username" placeholder="Usuario (login)" required>
+                        <input type="password" name="password" placeholder="Contraseña segura" required>
                     </div>
-                {% else %}
-                    <p>No hay movimientos auditados todavía.</p>
-                {% endfor %}
-            </aside>
-        </div>
+                    <div class="row-2">
+                        <input type="text" name="first_name" placeholder="Nombre" required>
+                        <input type="text" name="last_name" placeholder="Apellidos" required>
+                    </div>
+                    <div class="row-2">
+                        <input type="text" name="tax_id" placeholder="CIF/NIF/DNI" pattern="\S+" title="El CIF/NIF/DNI no puede contener espacios" required>
+                        <input type="text" name="affiliation_number" placeholder="Nº Afiliación" required>
+                    </div>
+                    <input type="text" name="address" placeholder="Dirección" required>
+                    <div style="display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px;">
+                        <input type="text" name="postal_code" placeholder="Código postal" style="max-width: 140px;" required>
+                        <input type="text" name="city" placeholder="Ciudad" required>
+                        <input type="text" name="province" placeholder="Provincia" required>
+                    </div>
+                    <div class="row-2">
+                        <input type="email" name="email" placeholder="Correo electrónico" required>
+                        <input type="tel" name="phone" placeholder="Teléfono" required>
+                    </div>
+                    <input type="hidden" name="country" value="España">
+                    <button type="submit" class="btn">Crear usuario</button>
+                </form>
+            </div>
+
+            <div class="panel">
+                <h2>Empleados registrados</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Apellidos</th>
+                                <th>CIF/NIF/DNI</th>
+                                <th>Nº Afiliación</th>
+                                <th>Dirección</th>
+                                <th>Código postal</th>
+                                <th>Ciudad</th>
+                                <th>Provincia</th>
+                                <th>Correo</th>
+                                <th>Teléfono</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>{{ user.first_name or '-' }}</td>
+                                <td>{{ user.last_name or '-' }}</td>
+                                <td>{{ user.tax_id or '-' }}</td>
+                                <td>{{ user.affiliation_number or '-' }}</td>
+                                <td>{{ user.address or '-' }}</td>
+                                <td>{{ user.postal_code or '-' }}</td>
+                                <td>{{ user.city or '-' }}</td>
+                                <td>{{ user.province or '-' }}</td>
+                                <td>{{ user.email or '-' }}</td>
+                                <td>{{ user.phone or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="10" class="dim">No hay empleados registrados todavía.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
     </div>
 </body>
 </html>
