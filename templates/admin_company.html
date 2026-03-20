@@ -176,9 +176,17 @@
             background: linear-gradient(135deg, var(--accent), var(--accent-2));
             color: #fff;
             margin-top: 4px;
+            transition: opacity 0.15s;
         }
 
-        .btn:hover { opacity: 0.9; }
+        .btn:hover:not(:disabled) { opacity: 0.9; }
+
+        .btn:disabled {
+            background: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+            opacity: 1;
+        }
 
         .resume-list { display: grid; gap: 8px; margin-top: 10px; }
 
@@ -277,15 +285,15 @@
                         </div>
                         <div class="checks">
                             <label class="check">
-                                <input type="checkbox" name="data_policy_accepted" {% if profile.data_policy_accepted %}checked{% endif %}>
+                                <input type="checkbox" id="cb_data_policy" name="data_policy_accepted" {% if profile.data_policy_accepted %}checked{% endif %}>
                                 <span>Acepto en mi nombre y en el de la organización las políticas de privacidad, cookies y condiciones de uso.</span>
                             </label>
                             <label class="check">
-                                <input type="checkbox" name="processing_manager_accepted" {% if profile.processing_manager_accepted %}checked{% endif %}>
+                                <input type="checkbox" id="cb_processing" name="processing_manager_accepted" {% if profile.processing_manager_accepted %}checked{% endif %}>
                                 <span>Declaro que soy el Responsable del Tratamiento y acepto el acuerdo de encargado del tratamiento.</span>
                             </label>
                         </div>
-                        <button type="submit" class="btn">Registrar / Guardar Empresa</button>
+                        <button type="submit" id="btn_save" class="btn" {% if not profile.data_policy_accepted or not profile.processing_manager_accepted %}disabled{% endif %}>Registrar / Guardar Empresa</button>
                     </form>
                 </div>
 
@@ -318,4 +326,18 @@
         </main>
     </div>
 </body>
+<script>
+    (function () {
+        const cb1 = document.getElementById('cb_data_policy');
+        const cb2 = document.getElementById('cb_processing');
+        const btn = document.getElementById('btn_save');
+
+        function updateBtn() {
+            btn.disabled = !(cb1.checked && cb2.checked);
+        }
+
+        cb1.addEventListener('change', updateBtn);
+        cb2.addEventListener('change', updateBtn);
+    })();
+</script>
 </html>

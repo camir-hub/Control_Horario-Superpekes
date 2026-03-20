@@ -266,6 +266,8 @@ def create_audit_log(actor_user_id, entity_type, action, reason, details, target
 def can_edit_entry(user, entry):
     if user.is_admin:
         return True
+    if entry.overtime_validated:
+        return False
     return entry.user_id == user.id and entry.work_date == date.today()
 
 
@@ -304,15 +306,33 @@ def monthly_entries(month, selected_user_id):
 def report_context(month):
     active_user = request_user()
     selected_user_id = active_user.id
+    include_all = False
 
-    if active_user.is_admin and request.args.get("user_id"):
-        selected_user_id = int(request.args["user_id"])
+    if active_user.is_admin:
+        requested_user = (request.args.get("user_id") or "all").strip().lower()
+        include_all = requested_user in {"", "all"}
+        if not include_all:
+            selected_user_id = int(requested_user)
 
-    _, _, entries = monthly_entries(month, selected_user_id)
+    if include_all:
+        month_start = datetime.strptime(month + "-01", "%Y-%m-%d").date()
+        month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        entries = (
+            TimeEntry.query.join(TimeEntry.user)
+            .filter(
+                TimeEntry.work_date >= month_start,
+                TimeEntry.work_date < month_end,
+            )
+            .order_by(TimeEntry.work_date.asc(), User.username.asc())
+            .all()
+        )
+    else:
+        _, _, entries = monthly_entries(month, selected_user_id)
+
     change_reasons = latest_change_reasons_for_entries(entries)
-    selected_user = db.session.get(User, selected_user_id)
+    selected_user = None if include_all else db.session.get(User, selected_user_id)
 
-    return active_user, selected_user_id, selected_user, entries, change_reasons
+    return active_user, selected_user_id, selected_user, entries, change_reasons, include_all
 
 
 def latest_change_reasons_for_entries(entries):
@@ -422,10 +442,15 @@ def validate_entry_payload(payload):
         return "Debes informar inicio y fin de horas extra", None
 
     if overtime_start and overtime_end:
+        overtime_start_dt = combine_dt(work_date, overtime_start)
+        overtime_end_dt = combine_dt(work_date, overtime_end)
+        check_out_dt = combine_dt(work_date, check_out)
+
         if combine_dt(work_date, overtime_end) <= combine_dt(work_date, overtime_start):
             return "El fin de horas extra debe ser mayor que el inicio de horas extra", None
-        if combine_dt(work_date, overtime_start) < combine_dt(work_date, check_in) or combine_dt(work_date, overtime_end) > combine_dt(work_date, check_out):
-            return "Las horas extra deben estar dentro de la jornada", None
+
+        if overtime_start_dt < check_out_dt:
+            return "Las horas extra deben empezar despues de la salida de la jornada", None
 
     intervals = [
         ("comida", meal_start, meal_end),
@@ -872,6 +897,7 @@ def calendar():
             "overtime_hours": round(overtime_hours(entry), 2),
             "comments": entry.comments or "",
             "editable": can_edit_entry(current_user, entry),
+            "overtime_validated": entry.overtime_validated,
         }
 
     selected_entry = entries_by_day_map.get(day_value, [None])[0]
@@ -993,7 +1019,10 @@ def update_entry(entry_id):
         return redirect(url_for("calendar"))
 
     if not can_edit_entry(current_user, entry):
-        flash("No tienes permisos para modificar este registro")
+        if entry.overtime_validated and not current_user.is_admin:
+            flash("Este registro ya ha sido validado por el administrador y no puede modificarse")
+        else:
+            flash("No tienes permisos para modificar este registro")
         return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
     reason = request.form.get("change_reason")
@@ -1067,7 +1096,7 @@ def update_entry(entry_id):
         details=f"Antes={previous}; Despues={serialize_entry(entry)}",
     )
     db.session.commit()
-    flash("Registro actualizado con traza de auditoría")
+    flash("Registro actualizado. Las horas extra quedan pendientes de nueva validación.")
     return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
 
@@ -1337,13 +1366,16 @@ def admin_validate_hours():
         month_end_exclusive = month_start.replace(month=month_start.month + 1, day=1)
 
     entries = (
-        TimeEntry.query.filter(
+        TimeEntry.query.join(TimeEntry.user)
+        .filter(
             TimeEntry.work_date >= month_start,
             TimeEntry.work_date < month_end_exclusive,
         )
-        .order_by(TimeEntry.work_date.desc(), TimeEntry.user.username.asc())
+        .order_by(TimeEntry.work_date.desc(), User.username.asc())
         .all()
     )
+
+    change_reasons = latest_change_reasons_for_entries(entries)
 
     return render_template(
         "validate_hours.html",
@@ -1353,6 +1385,7 @@ def admin_validate_hours():
         meal_hours=meal_hours,
         pause_hours=pause_hours,
         overtime_hours=overtime_hours,
+        change_reasons=change_reasons,
     )
 
 
@@ -1366,9 +1399,15 @@ def toggle_validation(entry_id):
     if not entry:
         return jsonify({"error": "Registro no encontrado"}), 404
 
-    entry.overtime_validated = not entry.overtime_validated
-    action_text = "validado" if entry.overtime_validated else "desvalidado"
-    
+    # La pantalla de validación solo permite marcar como validado.
+    if entry.overtime_validated:
+        return jsonify({
+            "success": True,
+            "validated": True,
+            "status": "Validado",
+        })
+
+    entry.overtime_validated = True
     create_audit_log(
         actor_user_id=current_user.id,
         target_user_id=entry.user_id,
@@ -1376,15 +1415,15 @@ def toggle_validation(entry_id):
         entity_type="time_entry",
         entity_id=entry.id,
         action="toggle_validation",
-        reason=f"Registro {action_text} por admin",
-        details=f"Horas: {worked_hours(entry):.2f}h, Estado: {action_text}",
+        reason="Registro validado por admin",
+        details=f"Horas: {worked_hours(entry):.2f}h, Estado: validado",
     )
     db.session.commit()
 
     return jsonify({
         "success": True,
-        "validated": entry.overtime_validated,
-        "status": "Validado" if entry.overtime_validated else "Pendiente"
+        "validated": True,
+        "status": "Validado",
     })
 
 
@@ -1392,7 +1431,8 @@ def toggle_validation(entry_id):
 @login_required
 def report():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user, selected_user_id, selected_user, entries, change_reasons = report_context(month)
+    active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
+    company_profile = get_company_profile()
 
     users = User.query.order_by(User.username.asc()).all() if active_user.is_admin else []
 
@@ -1402,6 +1442,9 @@ def report():
         "report.html",
         month=month,
         users=users,
+        company_profile=company_profile,
+        include_all=include_all,
+        selected_user_id=selected_user_id,
         selected_user=selected_user,
         entries=entries,
         change_reasons=change_reasons,
@@ -1417,14 +1460,14 @@ def report():
 @login_required
 def report_excel():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user, selected_user_id, _selected_user, entries, change_reasons = report_context(month)
-    show_comments = active_user.is_admin
+    active_user, selected_user_id, _selected_user, entries, change_reasons, include_all = report_context(month)
 
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Control horario"
     headers = [
         "Fecha",
+        "Empleado",
         "Entrada",
         "Salida",
         "Horas efectivas",
@@ -1434,13 +1477,13 @@ def report_excel():
         "Estado",
         "Motivos del cambio",
     ]
-    if show_comments:
-        headers.append("Comentarios")
     sheet.append(headers)
 
     for item in entries:
+        full_name = f"{(item.user.first_name or '').strip()} {(item.user.last_name or '').strip()}".strip()
         row = [
             item.work_date.isoformat(),
+            full_name or item.user.username,
             item.check_in.strftime("%H:%M"),
             item.check_out.strftime("%H:%M"),
             worked_hours(item),
@@ -1450,8 +1493,6 @@ def report_excel():
             "VALIDADO" if item.overtime_validated else "PENDIENTE",
             change_reasons.get(item.id, "-"),
         ]
-        if show_comments:
-            row.append(item.comments or "")
         sheet.append(row)
 
     cause_col = headers.index("Motivos del cambio") + 1
@@ -1462,7 +1503,8 @@ def report_excel():
     workbook.save(output)
     output.seek(0)
 
-    filename = f"reporte_{selected_user_id}_{month}.xlsx"
+    target_label = "todos" if include_all else str(selected_user_id)
+    filename = f"reporte_{target_label}_{month}.xlsx"
     return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
@@ -1470,20 +1512,50 @@ def report_excel():
 @login_required
 def report_pdf():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user, selected_user_id, selected_user, entries, change_reasons = report_context(month)
-    show_comments = active_user.is_admin
+    active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
+    company_profile = get_company_profile()
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    y = height - 50
+    y = height - 44
+
+    logo_path = os.path.join(app.static_folder, "Control_Horario_v.3.png")
+    if os.path.exists(logo_path):
+        pdf.drawImage(logo_path, width - 150, y - 28, width=100, height=28, preserveAspectRatio=True, mask='auto')
+
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(40, y, company_profile.company_name or "Superpekes")
+    y -= 12
+    pdf.setFont("Helvetica", 9)
+    city_country = ", ".join([part for part in [company_profile.city, company_profile.country] if part])
+    line2_parts = [
+        f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
+        company_profile.fiscal_address or "",
+        city_country,
+        f"Tel: {company_profile.phone}" if company_profile.phone else "",
+    ]
+    line2_text = " | ".join([part for part in line2_parts if part])
+    if line2_text:
+        pdf.drawString(40, y, line2_text[:95])
+        y -= 14
+    else:
+        y -= 6
+
+    pdf.line(40, y, width - 40, y)
+    y -= 14
+
     pdf.setFont("Helvetica-Bold", 14)
     pdf.drawString(40, y, "Informe oficial de control horario")
     y -= 20
 
     pdf.setFont("Helvetica", 10)
-    pdf.drawString(40, y, f"Empleado: {selected_user.username if selected_user else 'N/D'}")
+    selected_label = "Todos"
+    if selected_user:
+        full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
+        selected_label = full_name or selected_user.username
+    pdf.drawString(40, y, f"Empleado: {selected_label}")
     y -= 15
     pdf.drawString(40, y, f"Mes: {month}")
     y -= 25
@@ -1491,16 +1563,15 @@ def report_pdf():
     def draw_pdf_table_header(current_y):
         pdf.setFont("Helvetica-Bold", 9)
         pdf.drawString(40, current_y, "Fecha")
-        pdf.drawString(105, current_y, "Entrada")
-        pdf.drawString(155, current_y, "Salida")
-        pdf.drawString(205, current_y, "Efectivas")
-        pdf.drawString(260, current_y, "H. comida")
-        pdf.drawString(320, current_y, "Pausa")
-        pdf.drawString(360, current_y, "Extra")
-        pdf.drawString(398, current_y, "Estado")
-        pdf.drawString(442, current_y, "Motivos")
-        if show_comments:
-            pdf.drawString(523, current_y, "Comentario")
+        pdf.drawString(95, current_y, "Empleado")
+        pdf.drawString(165, current_y, "Entrada")
+        pdf.drawString(210, current_y, "Salida")
+        pdf.drawString(250, current_y, "Efect.")
+        pdf.drawString(290, current_y, "Comida")
+        pdf.drawString(336, current_y, "Pausa")
+        pdf.drawString(374, current_y, "Extra")
+        pdf.drawString(408, current_y, "Estado")
+        pdf.drawString(450, current_y, "Motivos")
         return current_y - 14
 
     y = draw_pdf_table_header(y)
@@ -1519,26 +1590,26 @@ def report_pdf():
             pdf.setFont("Helvetica", 9)
 
         pdf.drawString(40, y, item.work_date.isoformat())
-        pdf.drawString(105, y, item.check_in.strftime("%H:%M"))
-        pdf.drawString(155, y, item.check_out.strftime("%H:%M"))
-        pdf.drawString(205, y, f"{worked_hours(item):.2f}")
-        pdf.drawString(260, y, f"{meal_hours(item):.2f}")
-        pdf.drawString(320, y, f"{pause_hours(item):.2f}")
-        pdf.drawString(360, y, f"{overtime_hours(item):.2f}")
-        pdf.drawString(398, y, "VALIDADO" if item.overtime_validated else "PENDIENTE")
+        full_name = f"{(item.user.first_name or '').strip()} {(item.user.last_name or '').strip()}".strip()
+        pdf.drawString(95, y, (full_name or item.user.username or "-")[:12])
+        pdf.drawString(165, y, item.check_in.strftime("%H:%M"))
+        pdf.drawString(210, y, item.check_out.strftime("%H:%M"))
+        pdf.drawString(250, y, f"{worked_hours(item):.2f}")
+        pdf.drawString(290, y, f"{meal_hours(item):.2f}")
+        pdf.drawString(336, y, f"{pause_hours(item):.2f}")
+        pdf.drawString(374, y, f"{overtime_hours(item):.2f}")
+        pdf.drawString(408, y, "VALIDADO" if item.overtime_validated else "PENDIENTE")
 
         line_y = y
         for line in reason_lines:
-            pdf.drawString(442, line_y, line[:30])
+            pdf.drawString(450, line_y, line[:24])
             line_y -= 10
-
-        if show_comments:
-            pdf.drawString(523, y, (item.comments or "-")[:16])
         y -= needed_height
 
     pdf.save()
     buffer.seek(0)
-    filename = f"reporte_{selected_user_id}_{month}.pdf"
+    target_label = "todos" if include_all else str(selected_user_id)
+    filename = f"reporte_{target_label}_{month}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
@@ -1791,6 +1862,8 @@ def api_entry_update(entry_id):
     if not entry:
         return jsonify({"error": "Registro no encontrado"}), 404
     if not can_edit_entry(api_user, entry):
+        if entry.overtime_validated and not api_user.is_admin:
+            return jsonify({"error": "Este registro ya ha sido validado por el administrador y no puede modificarse"}), 403
         return jsonify({"error": "No tienes permisos para modificar este registro"}), 403
 
     data = request.get_json(silent=True) or {}
@@ -1847,7 +1920,10 @@ def api_entry_update(entry_id):
         details=f"Antes={previous}; Despues={serialize_entry(entry)}",
     )
     db.session.commit()
-    return jsonify(serialize_entry(entry))
+    result = serialize_entry(entry)
+    result["needs_revalidation"] = True
+    result["message"] = "Registro actualizado. Las horas extra quedan pendientes de nueva validación."
+    return jsonify(result)
 
 
 @app.post("/api/entries/<int:entry_id>/validate")

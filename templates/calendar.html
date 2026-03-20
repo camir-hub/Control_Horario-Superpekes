@@ -149,6 +149,10 @@
         .cal-cell.is-weekend { background: #fafafa; }
         .cal-cell.has-entry  { background: #f0fdf4; border-color: #86efac; }
         .cal-cell.has-overtime { background: #fff7ed; border-color: #fdba74; }
+        .cal-cell.is-validated {
+            background: #dcfce7 !important;
+            border-color: #16a34a !important;
+        }
         .cal-cell.is-today { box-shadow: inset 0 0 0 2px var(--accent); }
         .cal-cell.is-selected {
             border-color: var(--accent) !important;
@@ -160,9 +164,11 @@
         .cell-hours { font-size: 0.7rem; font-weight: 600; color: var(--muted); line-height: 1; }
         .cal-cell.has-entry .cell-hours    { color: #059669; }
         .cal-cell.has-overtime .cell-hours { color: #d97706; }
+        .cal-cell.is-validated .cell-hours { color: #15803d; }
         .cell-dot { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; }
         .cal-cell.has-entry .cell-dot    { background: #22c55e; }
         .cal-cell.has-overtime .cell-dot { background: #f97316; }
+        .cell-check { position: absolute; top: 3px; left: 5px; font-size: 0.68rem; color: #15803d; font-weight: 900; line-height: 1; }
         .form-section {
             border-left: 1px solid var(--line); background: #f8fafc;
             padding: 20px; display: flex; flex-direction: column; gap: 14px;

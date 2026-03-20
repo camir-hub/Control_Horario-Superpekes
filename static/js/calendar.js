@@ -300,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (entry) {
                     if (entry.overtime_hours > 0) cls += ' has-overtime';
                     else cls += ' has-entry';
+                    if (entry.overtime_validated) cls += ' is-validated';
                 }
                 if (isSelected) cls += ' is-selected';
                 cell.className = cls;
@@ -308,8 +309,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     ? `<span class="cell-hours">${entry.worked_hours}h</span>`
                     : '<span class="cell-hours"></span>';
                 const dotHtml = entry ? '<span class="cell-dot"></span>' : '';
+                const checkHtml = (entry && entry.overtime_validated)
+                    ? '<span class="cell-check">&#10003;</span>'
+                    : '';
 
-                cell.innerHTML = `<span class="cell-num">${cursor.getDate()}</span>${hoursHtml}${dotHtml}`;
+                cell.innerHTML = `<span class="cell-num">${cursor.getDate()}</span>${hoursHtml}${dotHtml}${checkHtml}`;
                 cell.addEventListener('click', () => selectDay(iso, cell));
             }
 
