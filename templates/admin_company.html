@@ -98,6 +98,14 @@
         .page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
         .page-header p { color: var(--muted); font-size: 0.92rem; }
 
+        .page-header-logo {
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+            max-width: 140px;
+            height: auto;
+        }
+
         .flash-ok {
             border: 1px solid #86efac;
             background: #f0fdf4;
@@ -231,6 +239,7 @@
             <div class="page-header">
                 <h1>Empresa</h1>
                 <p>Datos fiscales, domicilio y políticas de la organización.</p>
+                <img class="page-header-logo" src="{{ url_for('static', filename='img/Logo Superpekes.png') }}" alt="Logo Superpekes">
             </div>
 
             {% with messages = get_flashed_messages() %}
@@ -285,15 +294,15 @@
                         </div>
                         <div class="checks">
                             <label class="check">
-                                <input type="checkbox" id="cb_data_policy" name="data_policy_accepted" {% if profile.data_policy_accepted %}checked{% endif %}>
+                                <input type="checkbox" id="cb_data_policy" name="data_policy_accepted">
                                 <span>Acepto en mi nombre y en el de la organización las políticas de privacidad, cookies y condiciones de uso.</span>
                             </label>
                             <label class="check">
-                                <input type="checkbox" id="cb_processing" name="processing_manager_accepted" {% if profile.processing_manager_accepted %}checked{% endif %}>
+                                <input type="checkbox" id="cb_processing" name="processing_manager_accepted">
                                 <span>Declaro que soy el Responsable del Tratamiento y acepto el acuerdo de encargado del tratamiento.</span>
                             </label>
                         </div>
-                        <button type="submit" id="btn_save" class="btn" {% if not profile.data_policy_accepted or not profile.processing_manager_accepted %}disabled{% endif %}>Registrar / Guardar Empresa</button>
+                        <button type="submit" id="btn_save" class="btn" disabled>Registrar / Guardar Empresa</button>
                     </form>
                 </div>
 
@@ -338,6 +347,7 @@
 
         cb1.addEventListener('change', updateBtn);
         cb2.addEventListener('change', updateBtn);
+        updateBtn();
     })();
 </script>
 </html>

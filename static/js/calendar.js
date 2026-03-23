@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setLocationView(entry);
             }
         } else {
-            const canCreate = isAdmin || iso === today;
+            const canCreate = !isAdmin && iso === today;
             if (canCreate) {
                 panelHeading.textContent = 'Nuevo registro';
                 addWrap.style.display    = '';

@@ -172,6 +172,16 @@
             background: linear-gradient(135deg, var(--accent), var(--accent-2));
         }
 
+        .sec-icon svg {
+            width: 26px;
+            height: 26px;
+            stroke: #ffffff;
+            fill: none;
+            stroke-width: 2.1;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
         .sec-icon.green  { background: linear-gradient(135deg, #16a34a, #15803d); }
         .sec-icon.orange { background: linear-gradient(135deg, #ea580c, #c2410c); }
         .sec-icon.purple { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
@@ -283,7 +293,14 @@
 
             <div class="section-cards">
                 <a class="sec-card" href="{{ url_for('admin_users') }}">
-                    <div class="sec-icon">&#128101;</div>
+                    <div class="sec-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" role="img" focusable="false">
+                            <circle cx="9" cy="8" r="3"></circle>
+                            <path d="M3.5 18c0-2.8 2.4-5 5.5-5s5.5 2.2 5.5 5"></path>
+                            <circle cx="16.5" cy="9" r="2.5"></circle>
+                            <path d="M13.5 18c0-2.2 1.8-4 4-4 1.8 0 3.3 1.1 3.8 2.7"></path>
+                        </svg>
+                    </div>
                     <div>
                         <h3>Empleados</h3>
                         <p>Alta y baja de usuarios, datos personales y tipo de empleo.</p>

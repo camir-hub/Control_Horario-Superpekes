@@ -31,8 +31,11 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from openpyxl import Workbook
-from openpyxl.styles import Alignment
-from reportlab.lib.pagesizes import A4
+from openpyxl.styles import Alignment, Font, PatternFill, GradientFill, Border, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.properties import PageSetupProperties
+from openpyxl.drawing.image import Image as XlImage
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -303,16 +306,34 @@ def monthly_entries(month, selected_user_id):
     return month_start, month_end, entries
 
 
+def report_employee_users():
+    return (
+        User.query.filter(User.rol != "admin")
+        .order_by(User.first_name.asc(), User.last_name.asc(), User.username.asc())
+        .all()
+    )
+
+
 def report_context(month):
     active_user = request_user()
     selected_user_id = active_user.id
     include_all = False
 
     if active_user.is_admin:
+        available_users = report_employee_users()
+        available_user_ids = {user.id for user in available_users}
         requested_user = (request.args.get("user_id") or "all").strip().lower()
         include_all = requested_user in {"", "all"}
         if not include_all:
-            selected_user_id = int(requested_user)
+            try:
+                requested_user_id = int(requested_user)
+            except ValueError:
+                include_all = True
+            else:
+                if requested_user_id in available_user_ids:
+                    selected_user_id = requested_user_id
+                else:
+                    include_all = True
 
     if include_all:
         month_start = datetime.strptime(month + "-01", "%Y-%m-%d").date()
@@ -322,6 +343,7 @@ def report_context(month):
             .filter(
                 TimeEntry.work_date >= month_start,
                 TimeEntry.work_date < month_end,
+                User.rol != "admin",
             )
             .order_by(TimeEntry.work_date.asc(), User.username.asc())
             .all()
@@ -351,12 +373,15 @@ def latest_change_reasons_for_entries(entries):
 
     reasons_by_entry = {entry_id: [] for entry_id in entry_ids}
     for log in logs:
-        reason_text = (log.reason or "-").strip() or "-"
+        reason_text = (log.reason or "").strip()
         change_time = log.created_at.strftime("%H:%M") if log.created_at else "--:--"
-        reasons_by_entry.setdefault(log.time_entry_id, []).append(f"{change_time} (h) - {reason_text}")
+        if reason_text:
+            reasons_by_entry.setdefault(log.time_entry_id, []).append(f"{change_time} (h) - {reason_text}")
+        else:
+            reasons_by_entry.setdefault(log.time_entry_id, []).append(f"{change_time} (h)")
 
     return {
-        entry_id: "\n".join(lines) if lines else "-"
+        entry_id: "\n".join(lines) if lines else ""
         for entry_id, lines in reasons_by_entry.items()
     }
 
@@ -937,6 +962,9 @@ def calendar():
 @app.route("/add_entry", methods=["POST"])
 @login_required
 def add_entry():
+    if current_user.is_admin:
+        flash("Los administradores no pueden crear registros desde esta pantalla")
+        return redirect(url_for("calendar"))
     payload = {
         "work_date": request.form.get("work_date"),
         "check_in": request.form.get("check_in"),
@@ -1353,6 +1381,7 @@ def admin_validate_hours():
         return redirect(url_for("calendar"))
 
     month = request.args.get("month") or date.today().strftime("%Y-%m")
+    selected_user_id = (request.args.get("user_id") or "all").strip()
     
     try:
         month_start = datetime.strptime(f"{month}-01", "%Y-%m-%d").date()
@@ -1365,15 +1394,28 @@ def admin_validate_hours():
     else:
         month_end_exclusive = month_start.replace(month=month_start.month + 1, day=1)
 
-    entries = (
+    users = (
+        User.query
+        .filter(User.rol != "admin", User.active.is_(True))
+        .order_by(User.first_name.asc(), User.last_name.asc(), User.username.asc())
+        .all()
+    )
+
+    user_ids = {str(user.id) for user in users}
+    if selected_user_id != "all" and selected_user_id not in user_ids:
+        selected_user_id = "all"
+
+    query = (
         TimeEntry.query.join(TimeEntry.user)
         .filter(
             TimeEntry.work_date >= month_start,
             TimeEntry.work_date < month_end_exclusive,
         )
-        .order_by(TimeEntry.work_date.desc(), User.username.asc())
-        .all()
     )
+    if selected_user_id != "all":
+        query = query.filter(TimeEntry.user_id == int(selected_user_id))
+
+    entries = query.order_by(TimeEntry.work_date.desc(), User.username.asc()).all()
 
     change_reasons = latest_change_reasons_for_entries(entries)
 
@@ -1381,6 +1423,8 @@ def admin_validate_hours():
         "validate_hours.html",
         entries=entries,
         month=month,
+        users=users,
+        selected_user_id=selected_user_id,
         worked_hours=worked_hours,
         meal_hours=meal_hours,
         pause_hours=pause_hours,
@@ -1434,7 +1478,7 @@ def report():
     active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
     company_profile = get_company_profile()
 
-    users = User.query.order_by(User.username.asc()).all() if active_user.is_admin else []
+    users = report_employee_users() if active_user.is_admin else []
 
     total = round(sum(worked_hours(item) for item in entries), 2)
 
@@ -1460,51 +1504,313 @@ def report():
 @login_required
 def report_excel():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
-    active_user, selected_user_id, _selected_user, entries, change_reasons, include_all = report_context(month)
+    active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
 
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Control horario"
-    headers = [
-        "Fecha",
-        "Empleado",
-        "Entrada",
-        "Salida",
-        "Horas efectivas",
-        "Horas comida",
-        "Horas pausa",
-        "Horas extra",
-        "Estado",
-        "Motivos del cambio",
+    sheet.title = "Parte de Tiempo"
+    company_profile = get_company_profile()
+
+    company_name = (company_profile.company_name or "Superpekes").strip()
+    company_city = (company_profile.city or "").strip()
+    company_country = (company_profile.country or "").strip()
+    company_city_country = ", ".join([part for part in [company_city, company_country] if part])
+    company_line = " | ".join(
+        [
+            part
+            for part in [
+                f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
+                company_profile.fiscal_address or "",
+                company_city_country,
+                f"Tel: {company_profile.phone}" if company_profile.phone else "",
+            ]
+            if part
+        ]
+    )
+
+    if selected_user:
+        full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
+        employee_name = full_name or selected_user.username or "-"
+        employee_id = selected_user.affiliation_number or "-"
+        employee_department = selected_user.employment_type or "-"
+    else:
+        employee_name = "Todos"
+        employee_id = "-"
+        employee_department = "-"
+
+    dark_blue = "1E3A5F"
+    mid_blue = "2F6D94"
+    light_blue = "DCEEFF"
+    white = "FFFFFF"
+    line_blue = "9BB7D4"
+
+    col_widths = {"A": 12, "B": 10, "C": 10, "D": 15, "E": 13, "F": 12, "G": 12, "H": 30}
+    for col, width in col_widths.items():
+        sheet.column_dimensions[col].width = width
+
+    sheet.merge_cells("A1:H2")
+    title_cell = sheet["A1"]
+    title_cell.value = ""
+    title_cell.fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+    title_cell.alignment = Alignment(horizontal="center", vertical="center")
+    sheet.row_dimensions[1].height = 38
+    sheet.row_dimensions[2].height = 38
+
+    xl_logo = None
+    logo_original_width = 1.0
+    logo_original_height = 1.0
+    logo_path = os.path.join(app.static_folder, "img", "Logo_parte de tiempo.png")
+    if os.path.exists(logo_path):
+        xl_logo = XlImage(logo_path)
+        logo_original_width = max(float(xl_logo.width), 1.0)
+        logo_original_height = max(float(xl_logo.height), 1.0)
+        sheet.add_image(xl_logo, "A1")
+
+    # Row 3 as a visible spacer under the logo banner.
+    sheet.row_dimensions[3].height = 20
+
+    info_rows = [
+        ("Nombre del empleado:", employee_name, "Titulo:", "-"),
+        ("Nª de afiliacion:", employee_id, "Supervisor:", "-"),
+        ("Departamento:", employee_department, "Mes:", month),
     ]
-    sheet.append(headers)
+    info_start = 4
+    for idx, (l1, v1, l2, v2) in enumerate(info_rows):
+        row = info_start + idx
+        sheet.cell(row=row, column=1, value=l1).font = Font(bold=True, color=dark_blue)
+        sheet.cell(row=row, column=2, value=v1).alignment = Alignment(horizontal="left")
+        sheet.cell(row=row, column=4, value=l2).font = Font(bold=True, color=dark_blue)
+        sheet.cell(row=row, column=5, value=v2).alignment = Alignment(horizontal="left")
+
+    table_headers = [
+        "FECHA",
+        "ENTRADA",
+        "SALIDA",
+        "HORAS EFECTIVAS",
+        "HORAS COMIDA",
+        "HORAS PAUSA",
+        "HORAS EXTRAS",
+        "MOTIVO DEL CAMBIO",
+    ]
+    header_top_row = 8
+    header_bottom_row = 9
+    header_fill = GradientFill(
+        type="linear",
+        degree=90,
+        stop=("CCE6FA", "ADD3F2"),
+    )
+    header_border = Border(
+        left=Side(style="thin", color=line_blue),
+        right=Side(style="thin", color=line_blue),
+        top=Side(style="thin", color=line_blue),
+        bottom=Side(style="thin", color=line_blue),
+    )
+    header_top_border = Border(
+        left=Side(style="thin", color=line_blue),
+        right=Side(style="thin", color=line_blue),
+        top=Side(style="thin", color=line_blue),
+        bottom=Side(style=None),
+    )
+    header_bottom_border = Border(
+        left=Side(style="thin", color=line_blue),
+        right=Side(style="thin", color=line_blue),
+        top=Side(style=None),
+        bottom=Side(style="thin", color=line_blue),
+    )
+
+    # Same visual scale as validate_hours table headers (small size) and no bold.
+    header_text_color = "1E3A8A"
+    header_font = Font(bold=False, size=10, color=header_text_color)
+
+    for col, header in enumerate(table_headers, start=1):
+        col_letter = get_column_letter(col)
+        sheet.merge_cells(f"{col_letter}{header_top_row}:{col_letter}{header_bottom_row}")
+        words = header.split(" ")
+        display_header = f"{words[0]}\n{' '.join(words[1:])}" if len(words) > 1 else header
+        cell = sheet.cell(row=header_top_row, column=col, value=display_header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        cell.border = header_border
+
+    sheet.row_dimensions[header_top_row].height = 24
+    sheet.row_dimensions[header_bottom_row].height = 0
+
+    border = Border(
+        left=Side(style="thin", color=line_blue),
+        right=Side(style="thin", color=line_blue),
+        top=Side(style="thin", color=line_blue),
+        bottom=Side(style="thin", color=line_blue),
+    )
+
+    total_regular = 0.0
+    total_meal = 0.0
+    total_pause = 0.0
+    total_overtime = 0.0
+    data_row = header_bottom_row + 1
+    rendered_rows = 0
 
     for item in entries:
-        full_name = f"{(item.user.first_name or '').strip()} {(item.user.last_name or '').strip()}".strip()
-        row = [
-            item.work_date.isoformat(),
-            full_name or item.user.username,
-            item.check_in.strftime("%H:%M"),
-            item.check_out.strftime("%H:%M"),
-            worked_hours(item),
-            meal_hours(item),
-            pause_hours(item),
-            overtime_hours(item),
-            "VALIDADO" if item.overtime_validated else "PENDIENTE",
-            change_reasons.get(item.id, "-"),
-        ]
-        sheet.append(row)
+        regular = worked_hours(item)
+        meal = meal_hours(item)
+        pause = pause_hours(item)
+        overtime = overtime_hours(item)
+        total_regular += regular
+        total_meal += meal
+        total_pause += pause
+        total_overtime += overtime
+        reason_lines = [line.strip() for line in (change_reasons.get(item.id, "") or "").splitlines() if line.strip()]
+        reason = "\n".join(reason_lines)
 
-    cause_col = headers.index("Motivos del cambio") + 1
-    for row_idx in range(2, len(entries) + 2):
-        sheet.cell(row=row_idx, column=cause_col).alignment = Alignment(wrap_text=True, vertical="top")
+        values = [
+            item.work_date.isoformat(),
+            item.check_in.strftime("%H:%M") if item.check_in else "-",
+            item.check_out.strftime("%H:%M") if item.check_out else "-",
+            f"{regular:.2f}",
+            f"{meal:.2f}",
+            f"{pause:.2f}",
+            f"{overtime:.2f}",
+            reason[:120],
+        ]
+        for col, value in enumerate(values, start=1):
+            cell = sheet.cell(row=data_row, column=col, value=value)
+            cell.border = border
+            if col in {2, 3, 4, 5, 6, 7}:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            elif col == 8:
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        sheet.row_dimensions[data_row].height = max(22, (len(reason_lines) or 1) * 14)
+        data_row += 1
+        rendered_rows += 1
+
+    while rendered_rows < 9:
+        for col in range(1, 9):
+            cell = sheet.cell(row=data_row, column=col, value="")
+            cell.border = border
+        sheet.row_dimensions[data_row].height = 22
+        data_row += 1
+        rendered_rows += 1
+
+    summary_row = data_row + 1
+    firma_cell = sheet.cell(row=summary_row, column=1, value="Firma")
+    firma_cell.font = header_font
+    firma_cell.fill = header_fill
+    firma_cell.alignment = Alignment(horizontal="left", vertical="center")
+    firma_cell.border = border
+
+    white_fill = PatternFill(start_color=white, end_color=white, fill_type="solid")
+    for col in range(2, 6):
+        cell = sheet.cell(row=summary_row, column=col, value="")
+        cell.fill = white_fill
+        cell.border = Border()
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    totals_labels = [
+        (6, "H.EFECTIVAS", f"{total_regular:.2f} h"),
+        (7, "H.PAUSA", f"{total_pause:.2f} h"),
+        (8, "H.EXTRAS", f"{total_overtime:.2f} h"),
+    ]
+    summary_label_fill = header_fill
+    box_side = Side(style="thin", color=line_blue)
+    label_row = summary_row - 1
+    for col, label, value in totals_labels:
+        col_letter = get_column_letter(col)
+        sheet.merge_cells(f"{col_letter}{label_row}:{col_letter}{summary_row}")
+        # Celda superior (label_row): borde top + left + right
+        block_cell = sheet.cell(row=label_row, column=col, value=f"{label}\n{value}")
+        block_cell.font = header_font
+        block_cell.fill = summary_label_fill
+        block_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        block_cell.border = Border(
+            left=box_side, right=box_side, top=box_side, bottom=box_side,
+        )
+        # Celda inferior (summary_row): borde bottom + left + right
+        # (openpyxl necesita esto para que el borde inferior de la celda combinada sea visible)
+        bottom_cell = sheet.cell(row=summary_row, column=col)
+        bottom_cell.fill = summary_label_fill
+        bottom_cell.border = Border(
+            left=box_side, right=box_side, bottom=box_side,
+        )
+
+    def estimate_excel_text_width(value: object) -> float:
+        """Estimate display width used by Excel for a cell value."""
+        if value is None:
+            return 0.0
+        text = str(value)
+        lines = text.splitlines() or [text]
+        widest = 0.0
+        for line in lines:
+            line_w = 0.0
+            for ch in line:
+                if ch in "WM@%#":
+                    line_w += 1.35
+                elif ch.isupper():
+                    line_w += 1.15
+                elif ch.isdigit():
+                    line_w += 1.0
+                else:
+                    line_w += 0.95
+            widest = max(widest, line_w)
+        return widest
+
+    # Intelligent auto-fit for all columns based on visible content.
+    # Merged cells are weighted by merged span to avoid inflating one column.
+    merged_spans = {
+        (rng.min_row, rng.min_col): (rng.max_col - rng.min_col + 1)
+        for rng in sheet.merged_cells.ranges
+    }
+    for col in range(1, 9):
+        col_letter = get_column_letter(col)
+        max_width = 0.0
+        for row in range(1, summary_row + 1):
+            cell = sheet.cell(row=row, column=col)
+            value = cell.value
+            if value in (None, ""):
+                continue
+            span_cols = merged_spans.get((row, col), 1)
+            est_width = estimate_excel_text_width(value)
+            if span_cols > 1:
+                est_width /= span_cols
+            max_width = max(max_width, est_width)
+        # Clamp keeps print layout stable but still responsive to content.
+        sheet.column_dimensions[col_letter].width = min(max(9, max_width + 2.5), 52)
+
+    if xl_logo is not None:
+        # Match logo width to final width of columns A:D after auto-fit.
+        target_width_px = int(
+            sum((((sheet.column_dimensions[get_column_letter(c)].width or 8.43) * 7) + 5) for c in range(1, 5))
+            * 1.60
+        )
+        scale = target_width_px / logo_original_width
+        xl_logo.width = int(logo_original_width * scale)
+        xl_logo.height = int(logo_original_height * scale)
+
+        # Keep enough row height so the logo stays sharp and fully visible.
+        required_points = (xl_logo.height * 0.75) + 2
+        row_height = max(24, required_points / 2)
+        sheet.row_dimensions[1].height = row_height
+        sheet.row_dimensions[2].height = row_height
+
+    # Keep full table inside page width when printing/exporting to PDF.
+    sheet.print_area = f"A1:H{summary_row}"
+    sheet.sheet_view.showGridLines = False
+    sheet.print_options.gridLines = False
+    sheet.page_setup.orientation = "portrait"
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.page_margins.left = 0.4
+    sheet.page_margins.right = 0.4
+    sheet.page_margins.top = 0.4
+    sheet.page_margins.bottom = 0.4
+    sheet.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True, autoPageBreaks=False)
 
     output = io.BytesIO()
     workbook.save(output)
     output.seek(0)
 
     target_label = "todos" if include_all else str(selected_user_id)
-    filename = f"reporte_{target_label}_{month}.xlsx"
+    filename = f"parte_tiempo_{target_label}_{month}.xlsx"
     return send_file(output, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
@@ -1517,99 +1823,310 @@ def report_pdf():
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    page_width, page_height = A4
 
-    y = height - 44
-
-    logo_path = os.path.join(app.static_folder, "Control_Horario_v.3.png")
-    if os.path.exists(logo_path):
-        pdf.drawImage(logo_path, width - 150, y - 28, width=100, height=28, preserveAspectRatio=True, mask='auto')
-
-    pdf.setFont("Helvetica-Bold", 10)
-    pdf.drawString(40, y, company_profile.company_name or "Superpekes")
-    y -= 12
-    pdf.setFont("Helvetica", 9)
+    company_name = (company_profile.company_name or "Superpekes").strip()
     city_country = ", ".join([part for part in [company_profile.city, company_profile.country] if part])
-    line2_parts = [
-        f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
-        company_profile.fiscal_address or "",
-        city_country,
-        f"Tel: {company_profile.phone}" if company_profile.phone else "",
-    ]
-    line2_text = " | ".join([part for part in line2_parts if part])
-    if line2_text:
-        pdf.drawString(40, y, line2_text[:95])
-        y -= 14
-    else:
-        y -= 6
+    company_line = " | ".join(
+        [
+            part
+            for part in [
+                f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
+                company_profile.fiscal_address or "",
+                city_country,
+                f"Tel: {company_profile.phone}" if company_profile.phone else "",
+            ]
+            if part
+        ]
+    )
 
-    pdf.line(40, y, width - 40, y)
-    y -= 14
-
-    pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawString(40, y, "Informe oficial de control horario")
-    y -= 20
-
-    pdf.setFont("Helvetica", 10)
-    selected_label = "Todos"
     if selected_user:
         full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
-        selected_label = full_name or selected_user.username
-    pdf.drawString(40, y, f"Empleado: {selected_label}")
-    y -= 15
-    pdf.drawString(40, y, f"Mes: {month}")
-    y -= 25
+        employee_name = full_name or selected_user.username or "-"
+        employee_id = selected_user.affiliation_number or "-"
+        employee_department = selected_user.employment_type or "-"
+    else:
+        employee_name = "Todos"
+        employee_id = "-"
+        employee_department = "-"
 
-    def draw_pdf_table_header(current_y):
-        pdf.setFont("Helvetica-Bold", 9)
-        pdf.drawString(40, current_y, "Fecha")
-        pdf.drawString(95, current_y, "Empleado")
-        pdf.drawString(165, current_y, "Entrada")
-        pdf.drawString(210, current_y, "Salida")
-        pdf.drawString(250, current_y, "Efect.")
-        pdf.drawString(290, current_y, "Comida")
-        pdf.drawString(336, current_y, "Pausa")
-        pdf.drawString(374, current_y, "Extra")
-        pdf.drawString(408, current_y, "Estado")
-        pdf.drawString(450, current_y, "Motivos")
-        return current_y - 14
-
-    y = draw_pdf_table_header(y)
-
-    pdf.setFont("Helvetica", 9)
+    rows = []
+    total_regular = 0.0
+    total_pause = 0.0
+    total_overtime = 0.0
     for item in entries:
-        reason_lines = (change_reasons.get(item.id, "-") or "-").splitlines()
-        if not reason_lines:
-            reason_lines = ["-"]
+        regular = worked_hours(item)
+        meal = meal_hours(item)
+        pause = pause_hours(item)
+        overtime = overtime_hours(item)
+        total_regular += regular
+        total_pause += pause
+        total_overtime += overtime
+        reason_lines = [line.strip() for line in (change_reasons.get(item.id, "") or "").splitlines() if line.strip()]
+        rows.append(
+            [
+                item.work_date.isoformat() if item.work_date else "-",
+                item.check_in.strftime("%H:%M") if item.check_in else "-",
+                item.check_out.strftime("%H:%M") if item.check_out else "-",
+                f"{regular:.2f}",
+                f"{meal:.2f}",
+                f"{pause:.2f}",
+                f"{overtime:.2f}",
+                reason_lines,
+            ]
+        )
 
-        needed_height = max(13, len(reason_lines) * 10)
-        if y - needed_height < 60:
+    while len(rows) < 9:
+        rows.append(["", "", "", "", "", "", "", []])
+
+    def draw_header_block() -> float:
+        top = page_height - 24
+
+        # Fill top strip so no white band appears when printing.
+        pdf.setFillColorRGB(0.55, 0.67, 0.80)
+        pdf.rect(0, top, page_width, 24, fill=1, stroke=0)
+
+        pdf.setFillColorRGB(0.55, 0.67, 0.80)
+        pdf.rect(0, top - 98, page_width, 98, fill=1, stroke=0)
+
+        pdf.setFillColorRGB(0.12, 0.25, 0.45)
+        path = pdf.beginPath()
+        path.moveTo(140, top - 6)
+        path.lineTo(page_width, top - 6)
+        path.lineTo(page_width, top - 52)
+        path.lineTo(228, top - 52)
+        path.lineTo(162, top - 6)
+        path.close()
+        pdf.drawPath(path, fill=1, stroke=0)
+
+        title_text = "PARTE DE TIEMPO"
+        title_x = (page_width / 2) + 118
+        title_y = top - 36
+
+        # 3D text effect: layered dark offsets plus bright front text.
+        pdf.setFont("Helvetica-Bold", 20)
+        pdf.setFillColorRGB(0.04, 0.12, 0.28)
+        pdf.drawCentredString(title_x + 2.8, title_y - 2.6, title_text)
+        pdf.setFillColorRGB(0.08, 0.19, 0.37)
+        pdf.drawCentredString(title_x + 1.6, title_y - 1.4, title_text)
+        pdf.setFillColorRGB(0.12, 0.27, 0.49)
+        pdf.drawCentredString(title_x + 0.8, title_y - 0.8, title_text)
+        pdf.setFillColorRGB(1, 1, 1)
+        pdf.drawCentredString(title_x, title_y, title_text)
+
+        logo_path = os.path.join(app.static_folder, "img", "Logo Superpekes.png")
+        if os.path.exists(logo_path):
+            pdf.drawImage(logo_path, 24, top - 60, width=88, height=67, preserveAspectRatio=True, mask="auto")
+
+        band_y = top - 110
+        pdf.setFillColorRGB(0.17, 0.43, 0.58)
+        pdf.roundRect(24, band_y, 340, 22, 11, fill=1, stroke=0)
+        pdf.setFillColorRGB(1, 1, 1)
+        pdf.setFont("Helvetica-Bold", 13)
+        pdf.drawString(34, band_y + 6, "EMPRESA")
+
+        pdf.setFillGray(0.15)
+        pdf.setFont("Helvetica", 8)
+        pdf.drawString(24, band_y - 11, company_line or "-")
+
+        left_x = 24
+        right_x = 318
+        info_y = band_y - 34
+        label_font_size = 8
+        value_font_size = 8
+
+        pdf.setFont("Helvetica-Bold", label_font_size)
+        pdf.drawString(left_x, info_y, "Nombre del empleado:")
+        pdf.drawString(left_x, info_y - 14, "Nª de afiliacion:")
+        pdf.drawString(left_x, info_y - 28, "Departamento:")
+
+        pdf.drawString(right_x, info_y, "Titulo:")
+        pdf.drawString(right_x, info_y - 14, "Supervisor:")
+        pdf.drawString(right_x, info_y - 28, "Mes:")
+
+        pdf.setFont("Helvetica", value_font_size)
+        pdf.drawString(left_x + 120, info_y, employee_name)
+        pdf.drawString(left_x + 120, info_y - 14, employee_id)
+        pdf.drawString(left_x + 120, info_y - 28, employee_department)
+
+        pdf.drawString(right_x + 54, info_y, "-")
+        pdf.drawString(right_x + 54, info_y - 14, "-")
+        pdf.drawString(right_x + 54, info_y - 28, month)
+
+        return info_y - 40
+
+    def draw_table_header(y_pos: float, col_widths: list[int], headers: list[str]) -> float:
+        x = 24
+        total_width = sum(col_widths)
+        top_h = 13
+        bottom_h = 13
+        total_h = top_h + bottom_h
+
+        # Smooth blue gradient like the metrics block, without visible banding.
+        pdf.saveState()
+        clip_path = pdf.beginPath()
+        clip_path.rect(x, y_pos - total_h, total_width, total_h)
+        pdf.clipPath(clip_path, stroke=0, fill=0)
+
+        top_color = (0.80, 0.90, 0.98)
+        bottom_color = (0.68, 0.83, 0.95)
+        steps = 40
+        step_h = total_h / steps
+        for i in range(steps):
+            t = i / max(steps - 1, 1)
+            r = top_color[0] + (bottom_color[0] - top_color[0]) * t
+            g = top_color[1] + (bottom_color[1] - top_color[1]) * t
+            b = top_color[2] + (bottom_color[2] - top_color[2]) * t
+            pdf.setFillColorRGB(r, g, b)
+            y_step = y_pos - (i + 1) * step_h
+            pdf.rect(x, y_step, total_width, step_h + 0.4, fill=1, stroke=0)
+        pdf.restoreState()
+
+        pdf.setFillColorRGB(0.12, 0.23, 0.47)
+        pdf.setFont("Helvetica", 7)
+        cx = x
+        for idx, header in enumerate(headers):
+            words = header.split(" ")
+            top_text = words[0]
+            bottom_text = " ".join(words[1:]) if len(words) > 1 else ""
+            pad_x = cx + 4
+            if bottom_text:
+                pdf.drawString(pad_x, y_pos - 9, top_text)
+                pdf.drawString(pad_x, y_pos - 22, bottom_text)
+            else:
+                pdf.drawString(pad_x, y_pos - 15, top_text)
+            cx += col_widths[idx]
+
+        # Solo líneas verticales y borde exterior; sin línea horizontal intermedia.
+        pdf.setStrokeColorRGB(0.63, 0.77, 0.90)
+        cx = x
+        for width in col_widths:
+            pdf.line(cx, y_pos - total_h, cx, y_pos)
+            cx += width
+        pdf.line(cx, y_pos - total_h, cx, y_pos)
+        pdf.line(x, y_pos, x + total_width, y_pos)
+        pdf.line(x, y_pos - total_h, x + total_width, y_pos - total_h)
+
+        return y_pos - total_h
+
+    table_headers = [
+        "FECHA",
+        "ENTRADA",
+        "SALIDA",
+        "HORAS EFECTIVAS",
+        "HORAS COMIDA",
+        "HORAS PAUSA",
+        "HORAS EXTRAS",
+        "MOTIVO DEL CAMBIO",
+    ]
+    col_widths = [52, 46, 46, 66, 58, 56, 56, 167]
+    row_height = 20
+
+    y = draw_header_block()
+    y = draw_table_header(y, col_widths, table_headers)
+
+    x_origin = 24
+    pdf.setFillGray(0.2)
+    pdf.setFont("Helvetica", 8)
+    line_h = 10  # altura por línea de motivo
+
+    for row in rows:
+        reason_list = row[7] if isinstance(row[7], list) else ([row[7]] if row[7] else [])
+        dyn_row_height = max(row_height, len(reason_list) * line_h + 8) if reason_list else row_height
+
+        if y - dyn_row_height < 92:
             pdf.showPage()
-            y = height - 50
-            y = draw_pdf_table_header(y)
-            pdf.setFont("Helvetica", 9)
+            y = draw_header_block()
+            y = draw_table_header(y, col_widths, table_headers)
+            pdf.setFillGray(0.2)
+            pdf.setFont("Helvetica", 8)
 
-        pdf.drawString(40, y, item.work_date.isoformat())
-        full_name = f"{(item.user.first_name or '').strip()} {(item.user.last_name or '').strip()}".strip()
-        pdf.drawString(95, y, (full_name or item.user.username or "-")[:12])
-        pdf.drawString(165, y, item.check_in.strftime("%H:%M"))
-        pdf.drawString(210, y, item.check_out.strftime("%H:%M"))
-        pdf.drawString(250, y, f"{worked_hours(item):.2f}")
-        pdf.drawString(290, y, f"{meal_hours(item):.2f}")
-        pdf.drawString(336, y, f"{pause_hours(item):.2f}")
-        pdf.drawString(374, y, f"{overtime_hours(item):.2f}")
-        pdf.drawString(408, y, "VALIDADO" if item.overtime_validated else "PENDIENTE")
+        cx = x_origin
+        for idx, value in enumerate(row):
+            if idx == 7:
+                if reason_list:
+                    for li, rline in enumerate(reason_list):
+                        ty = y - 10 - li * line_h
+                        pdf.drawString(cx + 4, ty, rline[:60])
+                # columna vacía si no hay motivos
+            else:
+                text = value or ""
+                pdf.drawCentredString(cx + col_widths[idx] / 2, y - 16, text)
+            cx += col_widths[idx]
 
-        line_y = y
-        for line in reason_lines:
-            pdf.drawString(450, line_y, line[:24])
-            line_y -= 10
-        y -= needed_height
+        pdf.setStrokeColorRGB(0.73, 0.78, 0.83)
+        pdf.line(x_origin, y - dyn_row_height, x_origin + sum(col_widths), y - dyn_row_height)
+        y -= dyn_row_height
+
+    signature_width = 300
+    totals_width = 210
+
+    # Keep signature and totals anchored to the bottom area of A4.
+    footer_anchor_y = 48
+    signature_line_y = footer_anchor_y + 18
+
+    pdf.setStrokeColorRGB(0.18, 0.45, 0.68)
+    pdf.line(x_origin, signature_line_y, x_origin + signature_width, signature_line_y)
+    pdf.setFillGray(0.25)
+    pdf.setFont("Helvetica-Bold", 10)
+    pdf.drawString(x_origin, signature_line_y + 6, "Firma")
+
+    totals_x = x_origin + sum(col_widths) - totals_width
+    totals_y = footer_anchor_y + 2
+    totals_h = 28
+    section_w = totals_width / 3
+
+    # Same blue family as table headers, with smooth vertical interpolation.
+    pdf.saveState()
+    clip_path = pdf.beginPath()
+    clip_path.roundRect(totals_x, totals_y, totals_width, totals_h, 11)
+    pdf.clipPath(clip_path, stroke=0, fill=0)
+
+    top_color = (0.80, 0.90, 0.98)
+    bottom_color = (0.68, 0.83, 0.95)
+    steps = 36
+    step_h = totals_h / steps
+    for i in range(steps):
+        t = i / max(steps - 1, 1)
+        r = top_color[0] + (bottom_color[0] - top_color[0]) * t
+        g = top_color[1] + (bottom_color[1] - top_color[1]) * t
+        b = top_color[2] + (bottom_color[2] - top_color[2]) * t
+        pdf.setFillColorRGB(r, g, b)
+        y_step = totals_y + totals_h - (i + 1) * step_h
+        pdf.rect(totals_x, y_step, totals_width, step_h + 0.6, fill=1, stroke=0)
+    pdf.restoreState()
+
+    pdf.setStrokeColorRGB(0.56, 0.72, 0.88)
+    pdf.roundRect(totals_x, totals_y, totals_width, totals_h, 11, fill=0, stroke=1)
+    pdf.setLineWidth(0.6)
+    pdf.line(totals_x + section_w, totals_y + 4, totals_x + section_w, totals_y + totals_h - 4)
+    pdf.line(totals_x + 2 * section_w, totals_y + 4, totals_x + 2 * section_w, totals_y + totals_h - 4)
+
+    metrics = [
+        ("H.EFECTIVAS", total_regular),
+        ("H.PAUSA", total_pause),
+        ("H.EXTRAS", total_overtime),
+    ]
+    for idx, (label, value) in enumerate(metrics):
+        cx = totals_x + section_w * idx + section_w / 2
+        pdf.setFillColorRGB(0.12, 0.23, 0.47)
+        pdf.setFont("Helvetica", 6.4)
+        pdf.drawCentredString(cx, totals_y + 18, label)
+        pdf.setFont("Helvetica-Bold", 8.8)
+        pdf.drawCentredString(cx, totals_y + 8, f"{value:.2f} h")
+
+    footer = "www.superpekes.es"
+    footer_parts = [part for part in [company_profile.fiscal_address, city_country, company_profile.phone] if part]
+    if footer_parts:
+        footer += " | " + " | ".join(footer_parts)
+    pdf.setFillGray(0.45)
+    pdf.setFont("Helvetica", 8)
+    pdf.drawCentredString(page_width / 2, 28, footer[:120])
 
     pdf.save()
     buffer.seek(0)
     target_label = "todos" if include_all else str(selected_user_id)
-    filename = f"reporte_{target_label}_{month}.pdf"
+    filename = f"parte_tiempo_{target_label}_{month}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
@@ -1979,7 +2496,16 @@ def api_monthly_report():
     target_user_id = api_user.id
 
     if api_user.is_admin and request.args.get("user_id"):
-        target_user_id = int(request.args["user_id"])
+        try:
+            requested_user_id = int(request.args["user_id"])
+        except ValueError:
+            return jsonify({"error": "user_id debe ser numerico y pertenecer a un empleado"}), 400
+
+        report_user_ids = {user.id for user in report_employee_users()}
+        if requested_user_id not in report_user_ids:
+            return jsonify({"error": "user_id no corresponde a un empleado"}), 400
+
+        target_user_id = requested_user_id
 
     try:
         _, _, entries = monthly_entries(month, target_user_id)

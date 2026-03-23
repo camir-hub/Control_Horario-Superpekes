@@ -123,7 +123,8 @@
 
 		.filter-bar label { font-weight: 700; font-size: 0.88rem; display: block; margin-bottom: 4px; }
 
-		input[type="month"] {
+		input[type="month"],
+		select {
 			border: 1px solid var(--line);
 			border-radius: 8px;
 			padding: 9px 12px;
@@ -235,44 +236,42 @@
 			background: inherit !important;
 		}
 
-		.state-validated {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			padding: 5px 12px;
-			border-radius: 999px;
-			background: linear-gradient(180deg, #ecfdf3 0%, #d9fbe8 100%);
-			color: #065f46;
-			border: 1px solid #a7f3d0;
-			font-size: 0.84rem;
-			font-weight: 800;
-			line-height: 1;
-			min-width: 102px;
-			font-family: inherit;
-		}
+		   .state-validated {
+			   display: inline-flex;
+			   align-items: center;
+			   border-radius: 999px;
+			   padding: 3px 9px;
+			   font-size: 0.76rem;
+			   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			   font-weight: normal !important;
+			   background: #ecfdf5;
+			   border: 1px solid #86efac;
+			   color: #166534;
+			   line-height: 1;
+			   min-width: 0;
+		   }
 
 		.state-validated::before {
 			display: none; /* Remove the check icon */
 		}
 
-		.btn-validate {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			padding: 5px 12px;
-			font-size: 0.84rem;
-			border: 1px solid #fca5a5;
-			border-radius: 999px;
-			cursor: pointer;
-			background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
-			color: #991b1b;
-			font-weight: 800;
-			transition: opacity 0.15s;
-			white-space: nowrap;
-			box-shadow: none;
-			min-width: 102px;
-			font-family: inherit;
-		}
+		   .btn-validate {
+			   display: inline-flex;
+			   align-items: center;
+			   border-radius: 999px;
+			   padding: 3px 9px;
+			   font-size: 0.76rem;
+			   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			   font-weight: normal !important;
+			   background: #fef2f2;
+			   border: 1px solid #fca5a5;
+			   color: #b91c1c;
+			   cursor: pointer;
+			   transition: opacity 0.15s;
+			   white-space: nowrap;
+			   box-shadow: none;
+			   min-width: 0;
+		   }
 
 		.btn-validate:hover {
 			opacity: 0.9;
@@ -364,6 +363,15 @@
 					<div>
 						<label for="month">Mes</label>
 						<input type="month" id="month" name="month" value="{{ month }}" required>
+					</div>
+					<div>
+						<label for="user_id">Empleado</label>
+						<select id="user_id" name="user_id">
+							<option value="all" {% if selected_user_id == 'all' %}selected{% endif %}>Todos</option>
+							{% for user in users %}
+								<option value="{{ user.id }}" {% if selected_user_id == (user.id|string) %}selected{% endif %}>{{ ((user.first_name or '') ~ ' ' ~ (user.last_name or ''))|trim or user.username }}</option>
+							{% endfor %}
+						</select>
 					</div>
 					<button type="submit" class="btn-filter">Filtrar</button>
 				</form>

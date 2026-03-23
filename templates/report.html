@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Informe Mensual | Admin</title>
+    <script src="{{ url_for('static', filename='js/print_pdf.js') }}"></script>
     <style>
         :root {
             --sb: #1e293b;
@@ -101,6 +102,30 @@
         .page-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
         .page-header h1 { font-size: 1.5rem; margin-bottom: 4px; }
         .page-header p { color: var(--muted); font-size: 0.92rem; }
+
+        .header-main {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .report-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        .report-logo img {
+            width: 120px;
+            max-width: 28vw;
+            height: auto;
+            object-fit: contain;
+        }
 
         .actions {
             display: flex;
@@ -226,7 +251,7 @@
             border-radius: 999px;
             padding: 3px 9px;
             font-size: 0.76rem;
-            font-weight: 700;
+            font-weight: normal !important;
         }
 
         .pill-pending   { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
@@ -257,8 +282,8 @@
         }
 
         .print-company-header img {
-            max-width: 160px;
-            max-height: 46px;
+            max-width: 110px;
+            max-height: 32px;
             object-fit: contain;
         }
 
@@ -313,13 +338,16 @@
                     </div>
                     {% if company_profile.phone %}<div>Tel: {{ company_profile.phone }}</div>{% endif %}
                 </div>
-                <img src="{{ url_for('static', filename='Control_Horario_v.3.png') }}" alt="Logo Superpekes">
+                <img src="{{ url_for('static', filename='img/Logo Superpekes.png') }}" alt="Logo Superpekes">
             </div>
 
             <div class="page-header">
-                <div>
-                    <h1>Informe mensual oficial</h1>
+                <div class="header-main">
+                    <h1>Informe mensual</h1>
                     <p>Empleado: <strong>{% if selected_user %}{{ ((selected_user.first_name or '') ~ ' ' ~ (selected_user.last_name or ''))|trim or selected_user.username }}{% else %}Todos{% endif %}</strong> &nbsp;|&nbsp; Mes: <strong>{{ month }}</strong></p>
+                    <div class="report-logo no-print" aria-label="Logo empresa">
+                        <img src="{{ url_for('static', filename='img/Logo Superpekes.png') }}" alt="Logo Superpekes">
+                    </div>
                 </div>
                 <div class="actions no-print">
                     <a class="btn" href="{{ url_for('calendar') }}">Control Horario</a>
