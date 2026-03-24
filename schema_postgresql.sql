@@ -147,4 +147,17 @@ VALUES (
 )
 ON CONFLICT (username) DO NOTHING;
 
+-- Tabla para recuperación de contraseña
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code VARCHAR(12) NOT NULL,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    used BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_id ON password_reset_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_code ON password_reset_codes(code);
+
 COMMIT;

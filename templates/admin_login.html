@@ -187,11 +187,12 @@
 		<p class="subtitle">Panel exclusivo para administradores del sistema.</p>
 
 		<div class="tabs">
-			<button class="tab-btn{% if mode != 'forgot' %} active{% endif %}" data-tab="login" type="button">Entrar</button>
-			<button class="tab-btn{% if mode == 'forgot' %} active{% endif %}" data-tab="forgot" type="button">Olvidé contraseña</button>
+			<button class="tab-btn{% if mode not in ['forgot', 'forgot-request', 'forgot-verify'] %} active{% endif %}" data-tab="login" type="button">Entrar</button>
+			<button class="tab-btn{% if mode in ['forgot', 'forgot-request', 'forgot-verify'] %} active{% endif %}" data-tab="forgot-request" type="button">Olvidé contraseña</button>
 		</div>
 
-		<div class="panel-section{% if mode != 'forgot' %} active{% endif %}" id="panel-login">
+		<!-- Panel de login normal -->
+		<div class="panel-section{% if mode not in ['forgot', 'forgot-request', 'forgot-verify'] %} active{% endif %}" id="panel-login">
 			{% with messages = get_flashed_messages(category_filter=['admin_login']) %}
 				{% if messages %}
 					{% for msg in messages %}
@@ -211,7 +212,9 @@
 			</form>
 		</div>
 
-		<div class="panel-section{% if mode == 'forgot' %} active{% endif %}" id="panel-forgot">
+
+		<!-- Panel de solicitud de código -->
+		<div class="panel-section{% if mode in ['forgot', 'forgot-request'] %} active{% endif %}" id="panel-forgot-request">
 			{% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
 				{% if messages %}
 					{% for msg in messages %}
@@ -220,18 +223,42 @@
 				{% endif %}
 			{% endwith %}
 
-			<form method="POST" action="{{ url_for('admin_forgot_password') }}">
-				<label for="forgot-username">Usuario administrador</label>
-				<input id="forgot-username" type="text" name="username" autocomplete="username" placeholder="Ingresa tu usuario admin" required>
+			<form method="POST" action="{{ url_for('admin_password_reset_request') }}">
+				<label for="forgot-username-request">Usuario administrador</label>
+				<input id="forgot-username-request" type="text" name="username" autocomplete="username" placeholder="Ingresa tu usuario admin" required>
 
-				<label for="forgot-password">Nueva contraseña</label>
-				<input id="forgot-password" type="password" name="new_password" autocomplete="new-password" placeholder="Nueva contraseña" required>
+				<label for="forgot-email-request">Correo electrónico</label>
+				<input id="forgot-email-request" type="email" name="email" autocomplete="email" placeholder="Correo registrado" required>
 
-				<label for="forgot-confirm">Repetir nueva contraseña</label>
-				<input id="forgot-confirm" type="password" name="confirm_password" autocomplete="new-password" placeholder="Repite tu nueva contraseña" required>
+				<button type="submit">Enviar código</button>
+				<p class="hint">Recibirás un código de verificación en tu correo si los datos son correctos.</p>
+			</form>
+		</div>
 
-				<button type="submit">Actualizar contraseña</button>
-				<p class="hint">Debe cumplir políticas de seguridad: mayúscula, minúscula, número, símbolo y mínimo 10 caracteres.</p>
+		<!-- Panel de verificación de código y cambio de contraseña -->
+		<div class="panel-section{% if mode == 'forgot-verify' %} active{% endif %}" id="panel-forgot-verify">
+			{% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
+				{% if messages %}
+					{% for msg in messages %}
+						<div class="alert">{{ msg }}</div>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+
+			<form method="POST" action="{{ url_for('admin_password_reset_verify') }}">
+				<input type="hidden" name="username" value="{{ username|default('') }}">
+
+				<label for="forgot-code">Código recibido</label>
+				<input id="forgot-code" type="text" name="code" maxlength="6" placeholder="Código de 6 dígitos" required oninput="this.value=this.value.replace(/\D/g,'').replace(/\s/g,'')">
+
+				<label for="forgot-new-password">Nueva contraseña</label>
+				<input id="forgot-new-password" type="password" name="new_password" autocomplete="new-password" placeholder="Nueva contraseña" required>
+
+				<label for="forgot-confirm-password">Repetir nueva contraseña</label>
+				<input id="forgot-confirm-password" type="password" name="confirm_password" autocomplete="new-password" placeholder="Repite tu nueva contraseña" required>
+
+				<button type="submit">Restablecer contraseña</button>
+				<p class="hint">El código expira en 10 minutos. La contraseña debe cumplir políticas de seguridad.</p>
 			</form>
 		</div>
 

@@ -1,6 +1,8 @@
 import io
 import os
 import re
+import random
+import string
 from datetime import date, datetime, timedelta
 from functools import wraps
 
@@ -27,8 +29,9 @@ from flask_login import (
     login_user,
     logout_user,
 )
+from flask_mail import Mail, Message
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, text, and_
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill, GradientFill, Border, Side
@@ -48,10 +51,19 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+# Configuración de Flask-Mail
+app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.example.com")
+app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
+app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME", "")
+app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
+app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
+
 MAX_WEEKLY_HOURS = 40.0
 TOKEN_TTL_SECONDS = 60 * 60 * 12
 
 db = SQLAlchemy(app)
+mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
@@ -145,6 +157,20 @@ class CompanyProfile(db.Model):
     data_policy_accepted = db.Column(db.Boolean, nullable=False, default=False)
     processing_manager_accepted = db.Column(db.Boolean, nullable=False, default=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# Modelo para códigos de recuperación de contraseña
+class PasswordResetCode(db.Model):
+    __tablename__ = "password_reset_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    code = db.Column(db.String(12), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, nullable=False, default=False)
+
+    user = db.relationship("User", backref="reset_codes")
 
 
 @login_manager.user_loader
@@ -1266,7 +1292,7 @@ def admin_users():
         city = request.form.get("city", "").strip()
         province = request.form.get("province", "").strip()
         country = request.form.get("country", "España").strip() or "España"
-        rol = "employee"
+        rol = request.form.get("rol", "employee")
 
         # Validar campos obligatorios
         if not username or not password:
@@ -1324,7 +1350,7 @@ def admin_users():
         flash("Usuario creado")
         return redirect(url_for("admin_users"))
 
-    users = User.query.filter_by(rol="employee").order_by(User.username.asc()).all()
+    users = User.query.order_by(User.username.asc()).all()
     response = make_response(render_template("admin_users.html", users=users))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -2528,6 +2554,112 @@ def api_report_excel():
 @api_auth_required()
 def api_report_pdf():
     return report_pdf()
+
+
+# ===== RECUPERACIÓN DE CONTRASEÑA PARA ADMINISTRADORES =====
+
+def send_reset_code_email(to_email, code):
+    """Envía un código de recuperación de contraseña al correo del administrador."""
+    subject = "Código de recuperación de contraseña"
+    body = f"Tu código de recuperación es: {code}\n\nEste código es válido por 10 minutos."
+    msg = Message(subject=subject, recipients=[to_email], body=body)
+    mail.send(msg)
+
+
+@app.route("/admin-password-reset-request", methods=["GET", "POST"])
+def admin_password_reset_request():
+    """Solicita usuario y correo para enviar código de recuperación."""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        
+        if not username or not email:
+            flash("Completa usuario y correo electrónico", "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-request")
+
+        user = User.query.filter_by(username=username, email=email, rol="admin", active=True).first()
+        if not user:
+            flash("Usuario o correo no válido", "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-request")
+
+        # Generar código único de 6 dígitos
+        code = ''.join(random.choices(string.digits, k=6))
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        # Guardar código en la base de datos
+        reset_code = PasswordResetCode(user_id=user.id, code=code, expires_at=expires_at)
+        db.session.add(reset_code)
+        db.session.commit()
+
+        # Enviar el correo con el código
+        try:
+            send_reset_code_email(user.email, code)
+            flash("Código enviado al correo electrónico si los datos son correctos", "admin_forgot")
+        except Exception as e:
+            flash("No se pudo enviar el correo. Contacta al administrador.", "admin_forgot")
+        
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    return render_template("admin_login.html", mode="forgot-request")
+
+
+@app.route("/admin-password-reset-verify", methods=["POST"])
+def admin_password_reset_verify():
+    """Verifica el código y cambia la contraseña del administrador."""
+    username = request.form.get("username", "").strip()
+    code = request.form.get("code", "").strip().replace(" ", "")
+    new_password = request.form.get("new_password", "")
+    confirm = request.form.get("confirm_password", "")
+
+    if not username or not code or not new_password or not confirm:
+        flash("Completa todos los campos", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    if new_password != confirm:
+        flash("Las contraseñas no coinciden", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    password_error = validate_password_strength(new_password)
+    if password_error:
+        flash(password_error, "admin_forgot")
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    user = User.query.filter_by(username=username, rol="admin", active=True).first()
+    if not user:
+        flash("Usuario no válido", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    # Buscar código válido y no usado
+    reset_code = PasswordResetCode.query.filter(
+        and_(
+            PasswordResetCode.user_id == user.id,
+            PasswordResetCode.code == code,
+            PasswordResetCode.used == False,
+            PasswordResetCode.expires_at >= datetime.utcnow()
+        )
+    ).order_by(PasswordResetCode.created_at.desc()).first()
+
+    if not reset_code:
+        flash("Código inválido o expirado", "admin_forgot")
+        return render_template("admin_login.html", mode="forgot-verify", username=username)
+
+    # Marcar código como usado y actualizar contraseña
+    reset_code.used = True
+    user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+
+    create_audit_log(
+        actor_user_id=user.id,
+        target_user_id=user.id,
+        entity_type="user",
+        entity_id=user.id,
+        action="password_reset",
+        reason="Recuperación de contraseña admin con código",
+        details="Cambio de contraseña de administrador con código de verificación",
+    )
+
+    flash("Contraseña restablecida con éxito. Ya puedes iniciar sesión.", "admin_login")
+    return render_template("admin_login.html", mode="login")
 
 
 with app.app_context():
