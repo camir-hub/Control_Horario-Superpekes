@@ -1590,6 +1590,16 @@ def report_excel():
         xl_logo = XlImage(logo_path)
         logo_original_width = max(float(xl_logo.width), 1.0)
         logo_original_height = max(float(xl_logo.height), 1.0)
+        # Calcular el ancho total de las columnas A-H en puntos (aprox 1 unidad Excel = 7 píxeles)
+        total_width = sum([sheet.column_dimensions[get_column_letter(col)].width for col in range(1, 9)]) * 7
+        # Altura de las filas 1 y 2 en puntos (1 unidad Excel = 0.75 puntos)
+        total_height = (sheet.row_dimensions[1].height + sheet.row_dimensions[2].height) * 0.75
+        # Escalar el logo para que ocupe el ancho de A1:H2
+        scale_x = total_width / logo_original_width
+        scale_y = total_height / logo_original_height
+        scale = min(scale_x, scale_y)
+        xl_logo.width = int(logo_original_width * scale)
+        xl_logo.height = int(logo_original_height * scale)
         sheet.add_image(xl_logo, "A1")
 
     # Row 3 as a visible spacer under the logo banner.
@@ -1906,58 +1916,30 @@ def report_pdf():
         rows.append(["", "", "", "", "", "", "", []])
 
     def draw_header_block() -> float:
+
         top = page_height - 24
 
-        # Fill top strip so no white band appears when printing.
-        pdf.setFillColorRGB(0.55, 0.67, 0.80)
-        pdf.rect(0, top, page_width, 24, fill=1, stroke=0)
-
-        pdf.setFillColorRGB(0.55, 0.67, 0.80)
-        pdf.rect(0, top - 98, page_width, 98, fill=1, stroke=0)
-
-        pdf.setFillColorRGB(0.12, 0.25, 0.45)
-        path = pdf.beginPath()
-        path.moveTo(140, top - 6)
-        path.lineTo(page_width, top - 6)
-        path.lineTo(page_width, top - 52)
-        path.lineTo(228, top - 52)
-        path.lineTo(162, top - 6)
-        path.close()
-        pdf.drawPath(path, fill=1, stroke=0)
-
-        title_text = "PARTE DE TIEMPO"
-        title_x = (page_width / 2) + 118
-        title_y = top - 36
-
-        # 3D text effect: layered dark offsets plus bright front text.
-        pdf.setFont("Helvetica-Bold", 20)
-        pdf.setFillColorRGB(0.04, 0.12, 0.28)
-        pdf.drawCentredString(title_x + 2.8, title_y - 2.6, title_text)
-        pdf.setFillColorRGB(0.08, 0.19, 0.37)
-        pdf.drawCentredString(title_x + 1.6, title_y - 1.4, title_text)
-        pdf.setFillColorRGB(0.12, 0.27, 0.49)
-        pdf.drawCentredString(title_x + 0.8, title_y - 0.8, title_text)
-        pdf.setFillColorRGB(1, 1, 1)
-        pdf.drawCentredString(title_x, title_y, title_text)
-
-        logo_path = os.path.join(app.static_folder, "img", "Logo Superpekes.png")
+        logo_path = os.path.join(app.static_folder, "img", "Logo_parte de tiempo.png")
         if os.path.exists(logo_path):
-            pdf.drawImage(logo_path, 24, top - 60, width=88, height=67, preserveAspectRatio=True, mask="auto")
+            # Posicionar el logo arriba a la izquierda, autoajustable en alto
+            from PIL import Image
+            with Image.open(logo_path) as img:
+                w, h = img.size
+                max_height = 67
+                scale = max_height / h
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+            x = 24
+            y = page_height - new_h - 18
+            pdf.drawImage(logo_path, x, y, width=new_w, height=new_h, preserveAspectRatio=True, mask="auto")
+            band_y = y - 20
+        else:
+            band_y = page_height - 110
 
-        band_y = top - 110
-        pdf.setFillColorRGB(0.17, 0.43, 0.58)
-        pdf.roundRect(24, band_y, 340, 22, 11, fill=1, stroke=0)
-        pdf.setFillColorRGB(1, 1, 1)
-        pdf.setFont("Helvetica-Bold", 13)
-        pdf.drawString(34, band_y + 6, "EMPRESA")
-
-        pdf.setFillGray(0.15)
-        pdf.setFont("Helvetica", 8)
-        pdf.drawString(24, band_y - 11, company_line or "-")
-
+        # Mostrar datos de cabecera justo debajo del logo
         left_x = 24
         right_x = 318
-        info_y = band_y - 34
+        info_y = y - 24
         label_font_size = 8
         value_font_size = 8
 
@@ -2060,29 +2042,31 @@ def report_pdf():
         reason_list = row[7] if isinstance(row[7], list) else ([row[7]] if row[7] else [])
         dyn_row_height = max(row_height, len(reason_list) * line_h + 8) if reason_list else row_height
 
-        if y - dyn_row_height < 92:
-            pdf.showPage()
-            y = draw_header_block()
-            y = draw_table_header(y, col_widths, table_headers)
-            pdf.setFillGray(0.2)
-            pdf.setFont("Helvetica", 8)
+        # Solo imprimir la fila si tiene algún campo con valor
+        if any(str(v).strip() for v in row[:7]) or reason_list:
+            if y - dyn_row_height < 92:
+                pdf.showPage()
+                y = draw_header_block()
+                y = draw_table_header(y, col_widths, table_headers)
+                pdf.setFillGray(0.2)
+                pdf.setFont("Helvetica", 8)
 
-        cx = x_origin
-        for idx, value in enumerate(row):
-            if idx == 7:
-                if reason_list:
-                    for li, rline in enumerate(reason_list):
-                        ty = y - 10 - li * line_h
-                        pdf.drawString(cx + 4, ty, rline[:60])
-                # columna vacía si no hay motivos
-            else:
-                text = value or ""
-                pdf.drawCentredString(cx + col_widths[idx] / 2, y - 16, text)
-            cx += col_widths[idx]
+            cx = x_origin
+            for idx, value in enumerate(row):
+                if idx == 7:
+                    if reason_list:
+                        for li, rline in enumerate(reason_list):
+                            ty = y - 10 - li * line_h
+                            pdf.drawString(cx + 4, ty, rline[:60])
+                    # columna vacía si no hay motivos
+                else:
+                    text = value or ""
+                    pdf.drawCentredString(cx + col_widths[idx] / 2, y - 16, text)
+                cx += col_widths[idx]
 
-        pdf.setStrokeColorRGB(0.73, 0.78, 0.83)
-        pdf.line(x_origin, y - dyn_row_height, x_origin + sum(col_widths), y - dyn_row_height)
-        y -= dyn_row_height
+            pdf.setStrokeColorRGB(0.73, 0.78, 0.83)
+            pdf.line(x_origin, y - dyn_row_height, x_origin + sum(col_widths), y - dyn_row_height)
+            y -= dyn_row_height
 
     signature_width = 300
     totals_width = 210

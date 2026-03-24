@@ -269,6 +269,10 @@
             padding-bottom: 10px;
         }
 
+        .logo-print-only { display: none; }
+        @media print {
+            .logo-print-only { display: block !important; margin-right: 24px; }
+        }
         .print-company-header .company-meta {
             font-size: 0.85rem;
             color: var(--ink);
@@ -296,6 +300,7 @@
             .table-wrap { overflow: visible; }
             table { table-layout: auto; width: 100%; max-width: 100%; }
             @page { size: A4 landscape; margin: 8mm; }
+                    .logo-print-only { display: block !important; margin-right: 24px; }
             .print-company-header { display: flex; }
         }
 
@@ -319,6 +324,9 @@
                 <a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
                 <a class="active" href="{{ url_for('report') }}">&#128203; Informes</a>
                 <a href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
+                        <div class="logo-print-only">
+                            <img src="{{ url_for('static', filename='img/Logo_parte de tiempo.png') }}" alt="Logo parte de tiempo" />
+                        </div>
                 <div class="sb-divider"></div>
                 <a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
             </nav>
@@ -338,16 +346,14 @@
                     </div>
                     {% if company_profile.phone %}<div>Tel: {{ company_profile.phone }}</div>{% endif %}
                 </div>
-                <img src="{{ url_for('static', filename='img/Logo Superpekes.png') }}" alt="Logo Superpekes">
+
             </div>
 
             <div class="page-header">
                 <div class="header-main">
                     <h1>Informe mensual</h1>
                     <p>Empleado: <strong>{% if selected_user %}{{ ((selected_user.first_name or '') ~ ' ' ~ (selected_user.last_name or ''))|trim or selected_user.username }}{% else %}Todos{% endif %}</strong> &nbsp;|&nbsp; Mes: <strong>{{ month }}</strong></p>
-                    <div class="report-logo no-print" aria-label="Logo empresa">
-                        <img src="{{ url_for('static', filename='img/Logo Superpekes.png') }}" alt="Logo Superpekes">
-                    </div>
+                    <!-- Logo eliminado -->
                 </div>
                 <div class="actions no-print">
                     <a class="btn" href="{{ url_for('calendar') }}">Control Horario</a>
