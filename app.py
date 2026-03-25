@@ -1043,7 +1043,6 @@ def add_entry():
         return redirect(url_for("calendar", user_id=target_user_id, day=normalized["work_date"].isoformat()))
 
     # Bloqueo de horas extra anuales
-    from datetime import date
     year = normalized["work_date"].year
     yearly_overtime = get_yearly_overtime(target_user_id, year)
     overtime_start = normalized["overtime_start"]
