@@ -341,11 +341,10 @@
             <div class="card week-stats">
                 <div class="week-text">
                     <span>Semana {{ week_start.strftime('%d/%m') }} - {{ week_end.strftime('%d/%m') }}</span><br>
-                    <strong id="js-weekly-total">{{ '%05.2f'|format(weekly_total) }}</strong> h/semana
+                    <strong id="js-weekly-total">{{ '%05.2f'|format(weekly_total) }}</strong> <span style="font-size:1rem; color:var(--ink); font-weight:400;">h/semana</span>
                     <br>
-                    <strong id="js-yearly-overtime" style="color:{% if yearly_overtime >= yearly_overtime_limit %}#ef4444{% else %}#8b5cf6{% endif %};font-weight:600;display:inline-block;">{{ '%05.2f'|format(yearly_overtime) }}</strong>
-                    <strong style="color:#222;font-weight:600;">h</strong>
-                    <strong style="color:#888;font-weight:600;">&nbsp;80/año</strong>
+                    <strong id="js-yearly-overtime" style="color:{% if yearly_overtime >= yearly_overtime_limit %}#ef4444{% else %}#8b5cf6{% endif %};font-weight:600;display:inline-block;color:#8b5cf6;">{{ '%05.2f'|format(yearly_overtime) }}</strong>
+                    <span style="font-size:1rem; color:var(--ink); font-weight:400;">h.extras 80/año máx.</span>
                     {% if yearly_overtime >= yearly_overtime_limit %}<span style="color:#ef4444;font-weight:bold;">&nbsp;¡Límite anual alcanzado!</span>{% endif %}
                 </div>
                 <div class="week-bar-wrap">

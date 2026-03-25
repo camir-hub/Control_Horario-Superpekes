@@ -420,11 +420,21 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.href = '#';
         prevBtn.onclick = (e) => {
             e.preventDefault();
-            renderCalendar(prevMonth);
+            // Al navegar, actualizar el parámetro 'day' en la URL al primer día del mes mostrado
+            const firstDayPrev = toIso(prevMonth);
+            const params = new URLSearchParams(window.location.search);
+            params.set('day', firstDayPrev);
+            if (isAdmin && selectedUserId) params.set('user_id', selectedUserId);
+            window.location.search = params.toString();
         };
         nextBtn.onclick = (e) => {
             e.preventDefault();
-            renderCalendar(nextMonth);
+            // Al navegar, actualizar el parámetro 'day' en la URL al primer día del mes mostrado
+            const firstDayNext = toIso(nextMonth);
+            const params = new URLSearchParams(window.location.search);
+            params.set('day', firstDayNext);
+            if (isAdmin && selectedUserId) params.set('user_id', selectedUserId);
+            window.location.search = params.toString();
         };
     }
 
