@@ -169,9 +169,7 @@
         .cal-cell.has-entry .cell-hours    { color: #059669; }
         .cal-cell.has-overtime .cell-hours { color: #d97706; }
         .cal-cell.is-validated .cell-hours { color: #15803d; }
-        .cell-dot { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; }
-        .cal-cell.has-entry .cell-dot    { background: #22c55e; }
-        .cal-cell.has-overtime .cell-dot { background: #f97316; }
+        .cell-dot { position: absolute; top: 5px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: #22c55e; }
         .cell-check { position: absolute; top: 3px; left: 5px; font-size: 0.68rem; color: #15803d; font-weight: 900; line-height: 1; }
         .form-section {
             border-left: 1px solid var(--line); background: #f8fafc;
@@ -344,7 +342,7 @@
                 <div class="week-text">
                     <span>Semana {{ week_start.strftime('%d/%m') }} - {{ week_end.strftime('%d/%m') }}</span><br>
                     <strong id="js-weekly-total">{{ weekly_total }}</strong>
-                    <span> / {{ max_weekly_hours }} h efectivas</span>
+                    <span> / {{ max_weekly_hours }} h/semana</span>
                 </div>
                 <div class="week-bar-wrap">
                     <div class="week-bar-bg">
@@ -373,7 +371,7 @@
                     </div>
                 </div>
                 <div class="week-meta">
-                    <span>Efectivas: <strong>{{ weekly_total }} h</strong></span>
+                    <span>J.Ordinaria: <strong>{{ weekly_total }} h</strong></span>
                     <span>Comida: <strong>{{ weekly_meal_total }} h</strong></span>
                     <span>Pausa: <strong>{{ weekly_pause_total }} h</strong></span>
                     <span>Extra: <strong>{{ weekly_overtime_total }} h</strong></span>

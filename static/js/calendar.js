@@ -262,7 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const month = monthDate.getMonth();   // 0-indexed
 
         // Month title
-        const label = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        let label = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        label = label.replace(/^de\s+/i, '').replace(/\s+de\s+/i, ' ');
         monthTitle.textContent = cap(label);
 
         const firstDay = new Date(year, month, 1);
@@ -309,9 +310,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isSelected) cls += ' is-selected';
                 cell.className = cls;
 
-                const hoursHtml = entry
-                    ? `<span class="cell-hours">${entry.worked_hours}h</span>`
-                    : '<span class="cell-hours"></span>';
+                let hoursHtml = '';
+                if (entry) {
+                    let parts = [];
+                    if (entry.worked_hours > 0) parts.push(`<span style='color:#22c55e'>${entry.worked_hours}h</span>`); // Verde J.ordinaria
+                    if (entry.meal_hours > 0)   parts.push(`<span style='color:#fb923c'>${entry.meal_hours}h</span>`);   // Naranja comida
+                    if (entry.pause_hours > 0)  parts.push(`<span style='color:#ef4444'>${entry.pause_hours}h</span>`);  // Rojo pausa
+                    if (entry.overtime_hours > 0) parts.push(`<span style='color:#8b5cf6'>${entry.overtime_hours}h</span>`); // Violeta extra
+                    hoursHtml = parts.length ? `<span class="cell-hours">${parts.join('-')}</span>` : '<span class="cell-hours"></span>';
+                } else {
+                    hoursHtml = '<span class="cell-hours"></span>';
+                }
                 const dotHtml = entry ? '<span class="cell-dot"></span>' : '';
                 const checkHtml = (entry && entry.overtime_validated)
                     ? '<span class="cell-check">&#10003;</span>'
@@ -329,8 +338,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const prevMonth = new Date(year, month - 1, 1);
         const nextMonth = new Date(year, month + 1, 1);
         const userPart  = isAdmin ? `&user_id=${selectedUserId}` : '';
-        prevBtn.href = `/?day=${toIso(prevMonth)}${userPart}`;
-        nextBtn.href = `/?day=${toIso(nextMonth)}${userPart}`;
+        prevBtn.href = '#';
+        nextBtn.href = '#';
+        prevBtn.onclick = (e) => {
+            e.preventDefault();
+            renderCalendar(prevMonth);
+        };
+        nextBtn.onclick = (e) => {
+            e.preventDefault();
+            renderCalendar(nextMonth);
+        };
     }
 
     // ── Day selection ────────────────────────────────────────────
