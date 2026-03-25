@@ -1,3 +1,13 @@
+def get_yearly_overtime(user_id, year):
+    from datetime import date
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    entries = TimeEntry.query.filter(
+        TimeEntry.user_id == user_id,
+        TimeEntry.work_date >= year_start,
+        TimeEntry.work_date <= year_end,
+    ).all()
+    return round(sum(overtime_hours(item) for item in entries), 2)
 import io
 import os
 import re
@@ -252,6 +262,9 @@ def weekly_breakdown_for_user(user_id, day_value):
     overtime_total = round(sum(overtime_hours(item) for item in entries), 2)
     over_limit_hours = round(max(0.0, effective_hours - MAX_WEEKLY_HOURS), 2)
 
+    # Calcular horas extra anuales
+    year = start.year
+    yearly_overtime = get_yearly_overtime(user_id, year)
     return {
         "week_start": start,
         "week_end": end,
@@ -260,6 +273,8 @@ def weekly_breakdown_for_user(user_id, day_value):
         "pause_hours": pause_total,
         "overtime_hours": overtime_total,
         "over_limit_hours": over_limit_hours,
+        "yearly_overtime": yearly_overtime,
+        "yearly_overtime_limit": 80,
     }
 
 
@@ -982,6 +997,8 @@ def calendar():
         meal_hours=meal_hours,
         pause_hours=pause_hours,
         month_entries_dict=month_entries_dict,
+        yearly_overtime=weekly_stats.get("yearly_overtime", 0),
+        yearly_overtime_limit=weekly_stats.get("yearly_overtime_limit", 80),
     )
 
 
@@ -1023,6 +1040,16 @@ def add_entry():
     exists = TimeEntry.query.filter_by(user_id=target_user_id, work_date=normalized["work_date"]).first()
     if exists:
         flash("Ya existe un registro para ese dia. No se permiten ediciones")
+        return redirect(url_for("calendar", user_id=target_user_id, day=normalized["work_date"].isoformat()))
+
+    # Bloqueo de horas extra anuales
+    from datetime import date
+    year = normalized["work_date"].year
+    yearly_overtime = get_yearly_overtime(target_user_id, year)
+    overtime_start = normalized["overtime_start"]
+    overtime_end = normalized["overtime_end"]
+    if overtime_start and overtime_end and yearly_overtime >= 80:
+        flash("No puedes registrar más de 80 horas extra en el año.", "error")
         return redirect(url_for("calendar", user_id=target_user_id, day=normalized["work_date"].isoformat()))
 
     candidate = TimeEntry(

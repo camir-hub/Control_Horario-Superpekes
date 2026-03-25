@@ -257,23 +257,101 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMonth = parseIso(monthIso);
     let currentSelected = selectedDay;
 
+    // Permitir recarga dinámica de monthEntries si cambia el usuario (admin)
+    function reloadMonthEntries(newEntries) {
+        for (const k in monthEntries) delete monthEntries[k];
+        Object.assign(monthEntries, newEntries);
+        renderCalendar(currentMonth);
+    }
+
+    // Actualiza el valor de horas semanales y el rango de semana en el DOM
+    function updateWeeklyTotalDisplay(selectedIso) {
+        // Calcular semana (lunes a domingo) del día seleccionado
+        const selectedDate = parseIso(selectedIso);
+        const weekDay = selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1;
+        const weekStart = new Date(selectedDate);
+        weekStart.setDate(selectedDate.getDate() - weekDay);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+
+        // Sumar las horas de todos los días de la semana
+        let total = 0, meal = 0, pause = 0, extra = 0;
+        let d = new Date(weekStart.getTime());
+        while (d <= weekEnd) {
+            const iso = toIso(d);
+            const entry = monthEntries[iso];
+            if (entry) {
+                if (entry.worked_hours) total += entry.worked_hours;
+                if (entry.meal_hours) meal += entry.meal_hours;
+                if (entry.pause_hours) pause += entry.pause_hours;
+                if (entry.overtime_hours) extra += entry.overtime_hours;
+            }
+            d.setDate(d.getDate() + 1);
+        }
+        // Actualizar totales en el DOM
+        const el = document.getElementById('js-weekly-total');
+        if (el) el.textContent = total.toFixed(2);
+        // Valores del día seleccionado
+        const entry = monthEntries[selectedIso];
+        // J. Ordinaria
+        const panelOrd = document.getElementById('panel-jornada-ordinaria');
+        if (panelOrd) {
+            const worked = entry && entry.worked_hours ? entry.worked_hours : 0;
+            panelOrd.textContent = worked.toFixed(2) + ' h';
+        }
+        // Comida
+        const elMeal = document.querySelector('.week-meta span:nth-child(2) strong');
+        if (elMeal) {
+            const mealDay = entry && entry.meal_hours ? entry.meal_hours : 0;
+            elMeal.textContent = mealDay.toFixed(2) + ' h';
+        }
+        // Pausa
+        const elPause = document.querySelector('.week-meta span:nth-child(3) strong');
+        if (elPause) {
+            const pauseDay = entry && entry.pause_hours ? entry.pause_hours : 0;
+            elPause.textContent = pauseDay.toFixed(2) + ' h';
+        }
+        // Extra
+        const elExtra = document.querySelector('.week-meta span:nth-child(4) strong');
+        if (elExtra) {
+            const extraDay = entry && entry.overtime_hours ? entry.overtime_hours : 0;
+            elExtra.textContent = extraDay.toFixed(2) + ' h';
+        }
+
+        // Actualizar el rango de semana en el encabezado
+        const weekText = document.querySelector('.week-text span');
+        if (weekText) {
+            const start = weekStart.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            const end = weekEnd.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            weekText.textContent = `Semana ${start} - ${end}`;
+        }
+    }
+
     function renderCalendar(monthDate) {
         const year  = monthDate.getFullYear();
         const month = monthDate.getMonth();   // 0-indexed
+
+        // Calcular la PRIMERA semana visible del mes mostrado
+        const firstDay = new Date(year, month, 1);
+        const startOffset = (firstDay.getDay() + 6) % 7;
+        const startCell   = new Date(firstDay);
+        startCell.setDate(startCell.getDate() - startOffset);
+
+        // Si el día seleccionado no está en el mes mostrado, selecciona el primer día del mes
+        const selectedDate = parseIso(currentSelected);
+        if (selectedDate.getMonth() !== month || selectedDate.getFullYear() !== year) {
+            currentSelected = toIso(new Date(year, month, 1));
+        }
+        updateWeeklyTotalDisplay(currentSelected);
 
         // Month title
         let label = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
         label = label.replace(/^de\s+/i, '').replace(/\s+de\s+/i, ' ');
         monthTitle.textContent = cap(label);
 
-        const firstDay = new Date(year, month, 1);
         const lastDay  = new Date(year, month + 1, 0);
 
         // Monday-based offset (getDay: 0=Sun → offset 6, 1=Mon → 0, …)
-        const startOffset = (firstDay.getDay() + 6) % 7;
-        const startCell   = new Date(firstDay);
-        startCell.setDate(startCell.getDate() - startOffset);
-
         const endOffset = (lastDay.getDay() + 6) % 7;
         const endCell = new Date(lastDay);
         endCell.setDate(endCell.getDate() + (6 - endOffset));
@@ -357,6 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (clickedCell) clickedCell.classList.add('is-selected');
         currentSelected = iso;
 
+        updateWeeklyTotalDisplay(iso);
         updatePanel(iso);
 
         const params = new URLSearchParams(window.location.search);
@@ -455,6 +534,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Init ─────────────────────────────────────────────────────
     currentMonth = parseIso(monthIso);
     renderCalendar(currentMonth);
+
+    // Si el objeto APP tiene un método para recargar datos, exponerlo globalmente
+    window.reloadMonthEntries = reloadMonthEntries;
 
     if (fUserRoleFilter) {
         applyUserRoleFilter();

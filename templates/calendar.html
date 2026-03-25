@@ -341,8 +341,12 @@
             <div class="card week-stats">
                 <div class="week-text">
                     <span>Semana {{ week_start.strftime('%d/%m') }} - {{ week_end.strftime('%d/%m') }}</span><br>
-                    <strong id="js-weekly-total">{{ weekly_total }}</strong>
-                    <span> / {{ max_weekly_hours }} h/semana</span>
+                    <strong id="js-weekly-total">{{ '%05.2f'|format(weekly_total) }}</strong> h/semana
+                    <br>
+                    <strong id="js-yearly-overtime" style="color:{% if yearly_overtime >= yearly_overtime_limit %}#ef4444{% else %}#8b5cf6{% endif %};font-weight:600;display:inline-block;">{{ '%05.2f'|format(yearly_overtime) }}</strong>
+                    <strong style="color:#222;font-weight:600;">h</strong>
+                    <strong style="color:#888;font-weight:600;">&nbsp;80/año</strong>
+                    {% if yearly_overtime >= yearly_overtime_limit %}<span style="color:#ef4444;font-weight:bold;">&nbsp;¡Límite anual alcanzado!</span>{% endif %}
                 </div>
                 <div class="week-bar-wrap">
                     <div class="week-bar-bg">
@@ -371,7 +375,7 @@
                     </div>
                 </div>
                 <div class="week-meta">
-                    <span>J.Ordinaria: <strong>{{ weekly_total }} h</strong></span>
+                    <span>J.Ordinaria: <strong id="panel-jornada-ordinaria">0.00 h</strong></span>
                     <span>Comida: <strong>{{ weekly_meal_total }} h</strong></span>
                     <span>Pausa: <strong>{{ weekly_pause_total }} h</strong></span>
                     <span>Extra: <strong>{{ weekly_overtime_total }} h</strong></span>
@@ -420,20 +424,22 @@
                         </thead>
                         <tbody>
                             {% for item in entries %}
-                            <tr>
-                                <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
-                                <td>{{ '%.2f'|format(worked_hours(item)) }} h</td>
-                                <td>{{ '%.2f'|format(meal_hours(item)) }} h</td>
-                                <td>{{ '%.2f'|format(pause_hours(item)) }} h</td>
-                                <td>{{ '%.2f'|format(overtime_hours(item)) }} h</td>
-                                <td>
-                                    {% if item.overtime_validated %}
-                                        <span class="status-pill validated">Validado</span>
-                                    {% else %}
-                                        <span class="status-pill pending">Pendiente</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+                                {% if item.work_date.month == month_start.month and item.work_date.year == month_start.year %}
+                                <tr>
+                                    <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ '%.2f'|format(worked_hours(item) if worked_hours(item) else 0) }} h</td>
+                                    <td>{{ '%.2f'|format(meal_hours(item) if meal_hours(item) else 0) }} h</td>
+                                    <td>{{ '%.2f'|format(pause_hours(item) if pause_hours(item) else 0) }} h</td>
+                                    <td>{{ '%.2f'|format(overtime_hours(item) if overtime_hours(item) else 0) }} h</td>
+                                    <td>
+                                        {% if item.overtime_validated %}
+                                            <span class="status-pill validated">Validado</span>
+                                        {% else %}
+                                            <span class="status-pill pending">Pendiente</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
                             {% else %}
                             <tr>
                                 <td colspan="6">No hay registros en este mes.</td>
@@ -600,6 +606,22 @@ const APP = {
     updateUrl:      "{{ url_for('update_entry', entry_id=0) }}"
 };
 </script>
-<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+    <script>
+    // Recarga el calendario dinámicamente al cambiar de empleado (solo admin)
+    document.addEventListener('DOMContentLoaded', function() {
+        var userSelect = document.querySelector('select[name="user_id"]');
+        if (userSelect && {{ 'true' if current_user.is_admin else 'false' }}) {
+            userSelect.addEventListener('change', function(e) {
+                var params = new URLSearchParams(window.location.search);
+                params.set('user_id', this.value);
+                // Mantener el mes y día seleccionados si existen
+                var dayInput = document.querySelector('input[name="day"]');
+                if (dayInput) params.set('day', dayInput.value);
+                window.location.search = params.toString();
+            });
+        }
+    });
+    </script>
+    <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 </body>
 </html>
