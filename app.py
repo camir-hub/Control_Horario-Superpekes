@@ -1622,7 +1622,7 @@ def report_excel():
         "FECHA",
         "ENTRADA",
         "SALIDA",
-        "HORAS EFECTIVAS",
+        "HORAS ORDINARIAS",
         "HORAS COMIDA",
         "HORAS PAUSA",
         "HORAS EXTRAS",
@@ -1666,8 +1666,21 @@ def report_excel():
         cell = sheet.cell(row=header_top_row, column=col, value=display_header)
         cell.fill = header_fill
         cell.font = header_font
-        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-        cell.border = header_border
+        cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
+        # Borde completo para el encabezado
+        cell.border = Border(
+            left=Side(style="thin", color=line_blue),
+            right=Side(style="thin", color=line_blue),
+            top=Side(style="thin", color=line_blue),
+            bottom=Side(style="thin", color=line_blue),
+        )
+        # Borde inferior en la celda inmediatamente debajo del encabezado para cerrar el contorno
+        bottom_cell = sheet.cell(row=header_bottom_row, column=col)
+        bottom_cell.border = Border(
+            left=Side(style="thin", color=line_blue),
+            right=Side(style="thin", color=line_blue),
+            bottom=Side(style="thin", color=line_blue),
+        )
 
     sheet.row_dimensions[header_top_row].height = 24
     sheet.row_dimensions[header_bottom_row].height = 0
@@ -1710,11 +1723,18 @@ def report_excel():
         ]
         for col, value in enumerate(values, start=1):
             cell = sheet.cell(row=data_row, column=col, value=value)
-            cell.border = border
-            if col in {2, 3, 4, 5, 6, 7}:
-                cell.alignment = Alignment(horizontal="center", vertical="center")
-            elif col == 8:
-                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+            # Borde completo para los datos
+            cell.border = Border(
+                left=Side(style="thin", color=line_blue),
+                right=Side(style="thin", color=line_blue),
+                top=Side(style="thin", color=line_blue),
+                bottom=Side(style="thin", color=line_blue),
+            )
+            # Justificar a la izquierda, centrar verticalmente y agregar indentación a todos los datos
+            if col == 8:
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
         sheet.row_dimensions[data_row].height = max(22, (len(reason_lines) or 1) * 14)
         data_row += 1
         rendered_rows += 1
@@ -1742,7 +1762,7 @@ def report_excel():
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     totals_labels = [
-        (6, "H.EFECTIVAS", f"{total_regular:.2f} h"),
+        (6, "H.ORDINARIAS", f"{total_regular:.2f} h"),
         (7, "H.PAUSA", f"{total_pause:.2f} h"),
         (8, "H.EXTRAS", f"{total_overtime:.2f} h"),
     ]
@@ -1753,13 +1773,20 @@ def report_excel():
         col_letter = get_column_letter(col)
         sheet.merge_cells(f"{col_letter}{label_row}:{col_letter}{summary_row}")
         # Celda superior (label_row): borde top + left + right
-        block_cell = sheet.cell(row=label_row, column=col, value=f"{label}\n{value}")
+        # Resaltar el valor usando negrita y color azul para el valor
+        block_cell = sheet.cell(row=label_row, column=col)
+        block_cell.value = f"{label}\n"
         block_cell.font = header_font
         block_cell.fill = summary_label_fill
-        block_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        block_cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
         block_cell.border = Border(
             left=box_side, right=box_side, top=box_side, bottom=box_side,
         )
+        # Agregar el valor resaltado en la segunda línea
+        value_cell = sheet.cell(row=label_row, column=col)
+        # openpyxl no soporta rich text, pero podemos poner todo en negrita o cambiar color
+        block_cell.value = f"{label}\n{value}"
+        block_cell.font = header_font
         # Celda inferior (summary_row): borde bottom + left + right
         # (openpyxl necesita esto para que el borde inferior de la celda combinada sea visible)
         bottom_cell = sheet.cell(row=summary_row, column=col)
@@ -2021,7 +2048,7 @@ def report_pdf():
         "FECHA",
         "ENTRADA",
         "SALIDA",
-        "HORAS EFECTIVAS",
+        "HORAS ORDINARIAS",
         "HORAS COMIDA",
         "HORAS PAUSA",
         "HORAS EXTRAS",
@@ -2113,7 +2140,7 @@ def report_pdf():
     pdf.line(totals_x + 2 * section_w, totals_y + 4, totals_x + 2 * section_w, totals_y + totals_h - 4)
 
     metrics = [
-        ("H.EFECTIVAS", total_regular),
+        ("H.ORDINARIAS", total_regular),
         ("H.PAUSA", total_pause),
         ("H.EXTRAS", total_overtime),
     ]

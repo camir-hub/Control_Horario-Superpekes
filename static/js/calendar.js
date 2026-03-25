@@ -300,7 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (entry) {
                     if (entry.overtime_hours > 0) cls += ' has-overtime';
                     else cls += ' has-entry';
-                    if (entry.overtime_validated) cls += ' is-validated';
+                    if (entry.overtime_validated) {
+                        cls += ' is-validated';
+                    } else {
+                        cls += ' is-unvalidated';
+                    }
                 }
                 if (isSelected) cls += ' is-selected';
                 cell.className = cls;
