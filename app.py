@@ -515,8 +515,10 @@ def validate_entry_payload(payload):
         if combine_dt(work_date, overtime_end) <= combine_dt(work_date, overtime_start):
             return "El fin de horas extra debe ser mayor que el inicio de horas extra", None
 
-        if overtime_start_dt < check_out_dt:
-            return "Las horas extra deben empezar despues de la salida de la jornada", None
+        # Permitir solo si overtime_start_dt es igual a check_out_dt o con una tolerancia de 2 minutos
+        diferencia_min = abs((overtime_start_dt - check_out_dt).total_seconds()) / 60
+        if diferencia_min > 2:
+            return "Las horas extra deben empezar justo al salir de la jornada (máx. 2 minutos de diferencia)", None
 
     intervals = [
         ("comida", meal_start, meal_end),
