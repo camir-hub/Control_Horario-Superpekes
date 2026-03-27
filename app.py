@@ -1153,7 +1153,14 @@ def update_entry(entry_id):
         flash("La modificación supera 40 horas efectivas semanales")
         return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
+
     previous = serialize_entry(entry)
+    # Guardar valores previos para comparar cambios
+    prev_pause_start = entry.pause_start
+    prev_pause_end = entry.pause_end
+    prev_overtime_start = entry.overtime_start
+    prev_overtime_end = entry.overtime_end
+
     entry.check_in = normalized["check_in"]
     entry.meal_start = normalized["meal_start"]
     entry.meal_end = normalized["meal_end"]
@@ -1178,7 +1185,14 @@ def update_entry(entry_id):
         details=f"Antes={previous}; Despues={serialize_entry(entry)}",
     )
     db.session.commit()
-    flash("Registro actualizado. Las horas extra quedan pendientes de nueva validación.")
+
+    # Lógica para mostrar mensaje específico si solo se modifica la pausa
+    pausa_modificada = (prev_pause_start != entry.pause_start) or (prev_pause_end != entry.pause_end)
+    overtime_modificada = (prev_overtime_start != entry.overtime_start) or (prev_overtime_end != entry.overtime_end)
+    if pausa_modificada and not overtime_modificada:
+        flash("Registro actualizado. Las horas pausa quedan pendientes de nueva validación.")
+    else:
+        flash("Registro actualizado. Las horas extra quedan pendientes de nueva validación.")
     return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
 
