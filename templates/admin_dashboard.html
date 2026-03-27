@@ -138,8 +138,10 @@
         /* section access cards */
         .section-cards {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 12px;
+            align-items: stretch;
+            justify-content: center;
         }
 
         .sec-card {
@@ -150,9 +152,12 @@
             text-decoration: none;
             color: var(--ink);
             display: flex;
-            align-items: flex-start;
+                flex-direction: row;
+                align-items: center;
             gap: 14px;
             transition: box-shadow 0.2s, border-color 0.2s;
+            height: 100%;
+            min-height: 140px;
         }
 
         .sec-card:hover {
@@ -229,12 +234,31 @@
             max-width: 180px;
         }
 
+        /* Permitir que la columna Empleado sea autoajustable */
+        th:first-child, td:first-child {
+            max-width: none;
+            width: auto;
+        }
+
+        /* Permitir que las columnas Dirección y Correo sean autoajustables */
+        th:nth-child(5), td:nth-child(5),
+        th:nth-child(8), td:nth-child(8) {
+            max-width: none;
+            width: auto;
+        }
+        }
+
         /* Celda de la columna Registro más ancha */
         td:last-child, th:last-child {
             max-width: 240px;
         }
 
-        th { background: #f8fafc; font-weight: 700; }
+        th {
+            background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #0f172a;
+            border-color: #93c5fd;
+            font-weight: 700;
+        }
 
         /* responsive */
         @media (max-width: 1100px) {
@@ -369,7 +393,14 @@
                                     <td>{{ item.user.province }}</td>
                                     <td>{{ item.user.email }}</td>
                                     <td>{{ item.user.phone }}</td>
-                                    <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
+                                    <td>
+                                        {{ item.work_date.strftime('%d/%m/%Y') }}
+                                        {% if item.created_at %}
+                                            {{ item.created_at.strftime('%H:%M') }}
+                                        {% elif item.check_in %}
+                                            {{ item.check_in.strftime('%H:%M') }}
+                                        {% endif %}
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
