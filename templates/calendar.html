@@ -341,6 +341,15 @@
                         </select>
                     </div>
                     <input type="hidden" name="day" value="{{ selected_day.isoformat() }}">
+                    <input type="hidden" name="user_page" value="{{ user_page }}">
+                    <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                        <div style="display:flex; gap:6px;">
+                            <button type="submit" name="user_page" value="{% if user_page > 1 %}{{ user_page-1 }}{% else %}{{ total_pages }}{% endif %}" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
+                            <button type="submit" name="user_page" value="{% if user_page < total_pages %}{{ user_page+1 }}{% else %}1{% endif %}" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
+                            <button type="submit" name="user_page" value="1" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                        </div>
+                        <span style="font-size:0.8rem; color:#64748b;">Página {{ user_page }} de {{ total_pages }}</span>
+                    </div>
                 </form>
             </div>
             {% endif %}

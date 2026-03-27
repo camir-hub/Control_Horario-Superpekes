@@ -373,7 +373,7 @@
 
             <div class="two-col">
                 <div class="panel">
-                    <h2>Últimos registros</h2>
+                    <h2>Últimos registros horarios</h2>
                     <div class="table-wrap">
                         <table>
                             <thead>
@@ -419,6 +419,71 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Paginación para últimos registros horarios -->
+                    <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:12px;">
+                        <form method="get" style="display:flex; gap:6px; align-items:center;">
+                            <input type="hidden" name="validados_page" value="{{ validados_page }}">
+                            <button type="submit" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
+                            <button type="submit" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
+                            <button type="submit" name="horarios_page" value="1" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- Tabla de registros validados -->
+            <div class="panel" style="margin-top:32px;">
+                <h2>Registros validados</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Empleado</th>
+                                <th>CIF/NIF/DNI</th>
+                                <th>Nº Afiliación</th>
+                                <th>Código Postal</th>
+                                <th>Dirección</th>
+                                <th>Ciudad</th>
+                                <th>Provincia</th>
+                                <th>Correo</th>
+                                <th>Teléfono</th>
+                                <th>Validación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry, validated_at in validados_entries %}
+                            <tr>
+                                <td>{{ entry.user.first_name }} {{ entry.user.last_name }}</td>
+                                <td>{{ entry.user.tax_id }}</td>
+                                <td>{{ entry.user.affiliation_number }}</td>
+                                <td>{{ entry.user.postal_code }}</td>
+                                <td>{{ entry.user.address }}</td>
+                                <td>{{ entry.user.city }}</td>
+                                <td>{{ entry.user.province }}</td>
+                                <td>{{ entry.user.email }}</td>
+                                <td>{{ entry.user.phone }}</td>
+                                <td>
+                                    {{ entry.work_date.strftime('%d/%m/%Y') }}
+                                    {% if validated_at %}
+                                        {{ validated_at.strftime('%H:%M') }}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="10" style="color:#64748b;">Sin registros validados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Paginación para registros validados -->
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:12px;">
+                    <form method="get" style="display:flex; gap:6px; align-items:center;">
+                        <input type="hidden" name="horarios_page" value="{{ horarios_page }}">
+                        <button type="submit" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
+                        <button type="submit" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
+                        <button type="submit" name="validados_page" value="1" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                    </form>
                 </div>
             </div>
         </main>

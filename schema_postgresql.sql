@@ -1,10 +1,87 @@
--- Control Horario - PostgreSQL (pgAdmin4)
--- Script unico de esquema/actualizacion.
--- Ejecutar conectado a la base de datos: control_horario.
 
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS users (
+-- Control Horario - PostgreSQL (pgAdmin4)
+-- Esquema actualizado a 27/03/2026 según modelos activos en app.py
+-- Ejecutar conectado a la base de datos: control_horario
+
+BEGIN;
+
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS time_entries CASCADE;
+DROP TABLE IF EXISTS company_profile CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(80) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    rol VARCHAR(20) NOT NULL DEFAULT 'employee',
+    first_name VARCHAR(120) NOT NULL DEFAULT '',
+    last_name VARCHAR(120) NOT NULL DEFAULT '',
+    tax_id VARCHAR(40) NOT NULL DEFAULT '',
+    affiliation_number VARCHAR(32) NOT NULL DEFAULT '',
+    email VARCHAR(150) NOT NULL DEFAULT '',
+    phone VARCHAR(20) NOT NULL DEFAULT '',
+    employment_type VARCHAR(30) NOT NULL DEFAULT 'Interno',
+    address VARCHAR(200) NOT NULL DEFAULT '',
+    postal_code VARCHAR(10) NOT NULL DEFAULT '',
+    city VARCHAR(100) NOT NULL DEFAULT '',
+    province VARCHAR(100) NOT NULL DEFAULT '',
+    country VARCHAR(100) NOT NULL DEFAULT '',
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE company_profile (
+    id SERIAL PRIMARY KEY,
+    company_name VARCHAR(150) NOT NULL DEFAULT '',
+    tax_id VARCHAR(40) NOT NULL DEFAULT '',
+    fiscal_address VARCHAR(255) NOT NULL DEFAULT '',
+    postal_code VARCHAR(20) NOT NULL DEFAULT '',
+    city VARCHAR(120) NOT NULL DEFAULT '',
+    province VARCHAR(120) NOT NULL DEFAULT '',
+    country VARCHAR(120) NOT NULL DEFAULT 'Espana',
+    phone VARCHAR(40) NOT NULL DEFAULT '',
+    referral_source VARCHAR(120) NOT NULL DEFAULT '',
+    data_policy_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+    processing_manager_accepted BOOLEAN NOT NULL DEFAULT FALSE,
+    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE time_entries (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    work_date DATE NOT NULL,
+    check_in TIME NOT NULL,
+    meal_start TIME NULL,
+    meal_end TIME NULL,
+    pause_start TIME NULL,
+    pause_end TIME NULL,
+    overtime_start TIME NULL,
+    overtime_end TIME NULL,
+    check_out TIME NOT NULL,
+    comments TEXT NULL,
+    location_latitude DOUBLE PRECISION NULL,
+    location_longitude DOUBLE PRECISION NULL,
+    overtime_validated BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    actor_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    target_user_id INTEGER REFERENCES users(id) ON DELETE RESTRICT,
+    time_entry_id INTEGER REFERENCES time_entries(id) ON DELETE RESTRICT,
+    entity_type VARCHAR(30) NOT NULL,
+    entity_id INTEGER,
+    action VARCHAR(30) NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+);
+
+COMMIT;
     id SERIAL PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -104,6 +181,11 @@ ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS overtime_end TIME NULL;
 ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS overtime_validated BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
 
+-- Rellenar created_at en registros antiguos de time_entries si está vacío
+UPDATE time_entries
+SET created_at = COALESCE(created_at, work_date::timestamp + check_in, NOW())
+WHERE created_at IS NULL;
+
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     actor_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -138,10 +220,19 @@ INSERT INTO company_profile (id)
 VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO users (username, password_hash, rol, active)
+INSERT INTO users (username, password_hash, first_name, last_name, email, phone, address, postal_code, city, province, country, rol, active)
 VALUES (
-    'admin',
-    'scrypt:32768:8:1$FqL4HwsFJF5vbFRh$f802202ba1917d6b01e32dfca9caf4d420f0b5beb8d1a739703a418da0ea75ac3e6453917cbd82a74b2feb28b7d1f3a524738450dc27456535061f8efd1fdd82',
+    'Administrador',
+    'scrypt:32768:8:1$pmiB2BJlbleLOFKy$41e1499a07564146168bd0d45e9617a9de89491814ebf54824cbd9a88eb0dbc020095c8b8734a7a8e196d5064c1f08dca320cd774b75258f67534dd7d5506b1d',
+    'Diana',
+    '-----',
+    'camir.bureau@gmail.com',
+    '679911494',
+    'Santa Cruz de Bezana',
+    '39100',
+    'Santander',
+    'Cantabria',
+    'España',
     'admin',
     TRUE
 )

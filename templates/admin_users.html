@@ -319,7 +319,7 @@
                                 <th>Provincia</th>
                                 <th>Correo</th>
                                 <th>Teléfono</th>
-                                                            <th>Rol</th>
+                                <th>Rol</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -339,11 +339,18 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="10" class="dim">No hay empleados registrados todavía.</td>
+                                <td colspan="11" class="dim">No hay empleados registrados todavía.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:12px;">
+                    <form method="get" style="display:flex; gap:6px; align-items:center;">
+                        <button type="submit" name="page" value="{% if page > 1 %}{{ page-1 }}{% else %}{{ total_pages }}{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
+                        <button type="submit" name="page" value="{% if page < total_pages %}{{ page+1 }}{% else %}1{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
+                        <button type="submit" name="page" value="1" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                    </form>
                 </div>
             </div>
         </main>
