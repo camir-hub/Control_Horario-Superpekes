@@ -223,6 +223,15 @@
             padding: 9px 10px;
             font-size: 0.87rem;
             text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 180px;
+        }
+
+        /* Celda de la columna Registro más ancha */
+        td:last-child, th:last-child {
+            max-width: 240px;
         }
 
         th { background: #f8fafc; font-weight: 700; }
@@ -337,24 +346,34 @@
                             <thead>
                                 <tr>
                                     <th>Empleado</th>
-                                    <th>Fecha</th>
-                                    <th>Entrada</th>
-                                    <th>Salida</th>
-                                    <th>Estado</th>
+                                    <th>CIF/NIF/DNI</th>
+                                    <th>Nº Afiliación</th>
+                                    <th>Código Postal</th>
+                                    <th>Dirección</th>
+                                    <th>Ciudad</th>
+                                    <th>Provincia</th>
+                                    <th>Correo</th>
+                                    <th>Teléfono</th>
+                                    <th>Registro</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for item in recent_entries %}
                                 <tr>
-                                    <td>{{ item.user.username if item.user else '-' }}</td>
+                                    <td>{{ item.user.first_name }} {{ item.user.last_name }}</td>
+                                    <td>{{ item.user.tax_id }}</td>
+                                    <td>{{ item.user.affiliation_number }}</td>
+                                    <td>{{ item.user.postal_code }}</td>
+                                    <td>{{ item.user.address }}</td>
+                                    <td>{{ item.user.city }}</td>
+                                    <td>{{ item.user.province }}</td>
+                                    <td>{{ item.user.email }}</td>
+                                    <td>{{ item.user.phone }}</td>
                                     <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ item.check_in.strftime('%H:%M') }}</td>
-                                    <td>{{ item.check_out.strftime('%H:%M') }}</td>
-                                    <td>{% if item.overtime_validated %}Validado{% else %}Pendiente{% endif %}</td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="5" style="color:#64748b;">Sin registros recientes.</td>
+                                    <td colspan="10" style="color:#64748b;">Sin registros recientes.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

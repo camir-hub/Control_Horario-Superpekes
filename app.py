@@ -1275,8 +1275,10 @@ def admin_dashboard():
     active_users = sum(1 for user in users if user.active)
     employee_users = sum(1 for user in users if user.rol == "employee")
     today_entries = TimeEntry.query.filter(TimeEntry.work_date == date.today()).count()
+    from sqlalchemy.orm import joinedload
     recent_entries = (
-        TimeEntry.query.order_by(TimeEntry.created_at.desc())
+        TimeEntry.query.options(joinedload(TimeEntry.user))
+        .order_by(TimeEntry.created_at.desc())
         .limit(8)
         .all()
     )
