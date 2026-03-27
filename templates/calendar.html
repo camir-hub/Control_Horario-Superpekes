@@ -77,6 +77,11 @@
             border-radius: 10px;
             font-size: 0.92rem;
         }
+        .flash-warning {
+            background: #fef9c3;
+            border: 1px solid #fde047;
+            color: #a16207;
+        }
         .week-stats {
             display: flex;
             align-items: center;
@@ -310,10 +315,12 @@
         </div>
     </header>
 
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(with_categories=True) %}
         {% if messages %}
             <div style="padding:12px 20px 0; display:flex; flex-direction:column; gap:6px;">
-                {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+                {% for category, msg in messages %}
+                    <div class="flash{% if category == 'warning' %} flash-warning{% endif %}">{{ msg }}</div>
+                {% endfor %}
             </div>
         {% endif %}
     {% endwith %}

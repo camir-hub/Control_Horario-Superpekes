@@ -222,7 +222,8 @@ def pause_hours(entry):
 
 def worked_hours(entry):
     total = combine_dt(entry.work_date, entry.check_out) - combine_dt(entry.work_date, entry.check_in)
-    worked = total.total_seconds() / 3600 - meal_hours(entry) - pause_hours(entry)
+    # Solo se descuenta la comida, no la pausa, según normativa
+    worked = total.total_seconds() / 3600 - meal_hours(entry)
     return max(0.0, round(worked, 2))
 
 
@@ -503,6 +504,11 @@ def validate_entry_payload(payload):
             return "El fin de pausa debe ser mayor que el inicio de pausa", None
         if combine_dt(work_date, pause_start) < combine_dt(work_date, check_in) or combine_dt(work_date, pause_end) > combine_dt(work_date, check_out):
             return "La pausa debe estar dentro de la jornada", None
+        # AVISO: Si la pausa es mayor a 15 minutos, mostrar advertencia (no bloquear, solo avisar)
+        pausa_minutos = (combine_dt(work_date, pause_end) - combine_dt(work_date, pause_start)).total_seconds() / 60
+        if pausa_minutos > 15:
+            import flask
+            flask.flash("Recuerda: La pausa obligatoria será de 15 minutos para jornadas de más de 6 horas según el Art. 34.4 del Estatuto de los Trabajadores. Has introducido una pausa mayor.", "warning")
 
     if bool(overtime_start) != bool(overtime_end):
         return "Debes informar inicio y fin de horas extra", None
