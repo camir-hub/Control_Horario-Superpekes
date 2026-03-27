@@ -1133,9 +1133,25 @@ def update_entry(entry_id):
         "location_latitude": request.form.get("location_latitude"),
         "location_longitude": request.form.get("location_longitude"),
     }
+
+    # Guardar valores previos para validación de borrado
+    prev_pause_start = entry.pause_start
+    prev_pause_end = entry.pause_end
+    prev_overtime_start = entry.overtime_start
+    prev_overtime_end = entry.overtime_end
+
     error, normalized = validate_entry_payload(payload)
     if error:
         flash(error)
+        return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
+
+    # Si antes había pausa y ahora ambos campos están vacíos, no permitir guardar
+    if (prev_pause_start or prev_pause_end) and not (payload["pause_start"] or payload["pause_end"]):
+        flash("No puedes eliminar ambos valores de pausa. Debes informar inicio y fin de pausa o dejar los valores originales.", "error")
+        return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
+    # Si antes había extras y ahora ambos campos están vacíos, no permitir guardar
+    if (prev_overtime_start or prev_overtime_end) and not (payload["overtime_start"] or payload["overtime_end"]):
+        flash("No puedes eliminar ambos valores de horas extra. Debes informar inicio y fin de horas extra o dejar los valores originales.", "error")
         return redirect(url_for("calendar", user_id=entry.user_id, day=entry.work_date.isoformat()))
 
     original_week_hours = weekly_hours_for_user(entry.user_id, entry.work_date) - worked_hours(entry)
