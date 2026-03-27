@@ -197,7 +197,7 @@
         /* two-column bottom */
         .two-col {
             display: grid;
-            grid-template-columns: 1.5fr 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
         }
 
@@ -219,9 +219,16 @@
         .summary-row:last-child { border-bottom: none; }
         .summary-row span { color: var(--muted); font-size: 0.8rem; display: block; margin-bottom: 2px; }
 
-        .table-wrap { overflow-x: auto; }
+        .table-wrap {
+            overflow-x: auto;
+            min-width: 0;
+        }
 
-        table { width: 100%; border-collapse: collapse; min-width: 480px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 320px;
+        }
 
         th, td {
             border: 1px solid var(--line);
@@ -268,6 +275,8 @@
             .sb-nav a.exit { margin-top: 0; }
             .content { padding: 16px; }
             .metrics { grid-template-columns: repeat(2, 1fr); }
+            .section-cards { grid-template-columns: 1fr; }
+            .two-col { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 720px) {
