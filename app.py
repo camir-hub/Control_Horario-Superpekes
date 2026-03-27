@@ -772,11 +772,12 @@ def forgot_password():
         return redirect(url_for("calendar"))
 
     username = request.form.get("username", "").strip()
+    email = request.form.get("email", "").strip()
     new_password = request.form.get("new_password", "")
     confirm = request.form.get("confirm_password", "")
 
-    if not username or not new_password or not confirm:
-        flash("Completa usuario y las dos contraseñas", "forgot")
+    if not username or not email or not new_password or not confirm:
+        flash("Completa usuario, correo y las dos contraseñas", "forgot")
         return render_template("login.html", mode="forgot")
 
     if new_password != confirm:
@@ -788,9 +789,9 @@ def forgot_password():
         flash(password_error, "forgot")
         return render_template("login.html", mode="forgot")
 
-    user = User.query.filter_by(username=username).first()
+    user = User.query.filter_by(username=username, email=email).first()
     if not user or not user.active:
-        flash("Usuario no encontrado o inactivo", "forgot")
+        flash("Usuario o correo electrónico incorrecto o inactivo", "forgot")
         return render_template("login.html", mode="forgot")
     if user.is_admin:
         flash("La recuperación desde esta pantalla aplica solo a empleados", "forgot")
