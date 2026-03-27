@@ -494,7 +494,7 @@ def validate_entry_payload(payload):
         if combine_dt(work_date, meal_end) <= combine_dt(work_date, meal_start):
             return "El fin de comida debe ser mayor que el inicio de comida", None
         if combine_dt(work_date, meal_start) < combine_dt(work_date, check_in) or combine_dt(work_date, meal_end) > combine_dt(work_date, check_out):
-            return "La comida debe estar dentro de la jornada", None
+            return "La comida debe estar dentro del hora la jornada laboral", None
 
     if bool(pause_start) != bool(pause_end):
         return "Debes informar inicio y fin de pausa", None
