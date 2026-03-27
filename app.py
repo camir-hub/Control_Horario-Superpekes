@@ -1377,8 +1377,22 @@ def admin_users():
             flash(password_error)
             return redirect(url_for("admin_users"))
 
+
+        # Validaciones de unicidad
         if User.query.filter_by(username=username).first():
             flash("Ese usuario ya existe")
+            return redirect(url_for("admin_users"))
+        if User.query.filter_by(tax_id=tax_id).first():
+            flash("El CIF/NIF/DNI ya está registrado para otro usuario.", "warning")
+            return redirect(url_for("admin_users"))
+        if User.query.filter_by(affiliation_number=affiliation_number).first():
+            flash("El Nº de afiliación ya está registrado para otro usuario.", "warning")
+            return redirect(url_for("admin_users"))
+        if User.query.filter_by(email=email).first():
+            flash("El correo electrónico ya está registrado para otro usuario.", "warning")
+            return redirect(url_for("admin_users"))
+        if User.query.filter_by(phone=phone).first():
+            flash("El teléfono ya está registrado para otro usuario.", "warning")
             return redirect(url_for("admin_users"))
 
         user = User(
