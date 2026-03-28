@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const {
         monthIso, selectedDay, today, isAdmin,
         selectedUserId, monthEntries,
-        updateUrl,
+        updateUrl, editableDays = []
     } = APP;
 
     // ── DOM references ───────────────────────────────────────────
@@ -328,6 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderCalendar(monthDate) {
+        // Convertir editableDays a Set para búsqueda rápida
+        const editableSet = new Set(editableDays || []);
         const year  = monthDate.getFullYear();
         const month = monthDate.getMonth();   // 0-indexed
 
@@ -366,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isSelected   = iso === currentSelected;
             const isWeekend    = cursor.getDay() === 0 || cursor.getDay() === 6;
             const entry        = monthEntries[iso];
+            const isEditableDay = editableSet.has(iso);
 
             const cell = document.createElement('button');
             cell.type  = 'button';
@@ -385,6 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         cls += ' is-unvalidated';
                     }
                 }
+                if (isEditableDay) cls += ' is-editable-day';
                 if (isSelected) cls += ' is-selected';
                 cell.className = cls;
 
@@ -468,6 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const entry = monthEntries[iso] || null;
         panelDayLabel.textContent = cap(localeDateLabel(iso));
 
+        // Permitir crear registro si es día editable o el día actual
+        const isEditableDay = (editableDays || []).includes(iso);
+
         if (entry) {
             if (entry.editable) {
                 // ── Edit form ──
@@ -513,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setLocationView(entry);
             }
         } else {
-            const canCreate = !isAdmin && iso === today;
+            const canCreate = !isAdmin && (iso === today || isEditableDay);
             if (canCreate) {
                 panelHeading.textContent = 'Nuevo registro';
                 addWrap.style.display    = '';

@@ -9,6 +9,21 @@
                     background: linear-gradient(135deg, #fff5f5 0%, #ffd6d6 100%) !important;
                     border-color: #f28b82 !important;
                 }
+                .cal-cell.is-editable-day {
+                    background: linear-gradient(135deg, #fef9c3 0%, #fde047 100%) !important;
+                    border-color: #facc15 !important;
+                    box-shadow: 0 0 0 2px #facc15;
+                    position: relative;
+                }
+                .cal-cell.is-editable-day::after {
+                    content: '★';
+                    position: absolute;
+                    top: 6px;
+                    right: 8px;
+                    color: #f59e42;
+                    font-size: 1.1em;
+                    font-weight: bold;
+                }
         :root {
             --bg: #f0f4f8;
             --panel: #ffffff;
@@ -342,14 +357,6 @@
                     </div>
                     <input type="hidden" name="day" value="{{ selected_day.isoformat() }}">
                     <input type="hidden" name="user_page" value="{{ user_page }}">
-                    <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-                        <div style="display:flex; gap:6px;">
-                            <button type="submit" name="user_page" value="{% if user_page > 1 %}{{ user_page-1 }}{% else %}{{ total_pages }}{% endif %}" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
-                            <button type="submit" name="user_page" value="{% if user_page < total_pages %}{{ user_page+1 }}{% else %}1{% endif %}" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
-                            <button type="submit" name="user_page" value="1" style="padding:4px 10px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
-                        </div>
-                        <span style="font-size:0.8rem; color:#64748b;">Página {{ user_page }} de {{ total_pages }}</span>
-                    </div>
                 </form>
             </div>
             {% endif %}
@@ -618,9 +625,11 @@ const APP = {
     isAdmin:        {{ 'true' if current_user.is_admin else 'false' }},
     selectedUserId: {{ selected_user.id if selected_user else current_user.id }},
     monthEntries:   {{ month_entries_dict | tojson }},
-    updateUrl:      "{{ url_for('update_entry', entry_id=0) }}"
+    updateUrl:      "{{ url_for('update_entry', entry_id=0) }}",
+    editableDays:   {{ editable_days | tojson }}
 };
 </script>
+
     <script>
     // Recarga el calendario dinámicamente al cambiar de empleado (solo admin)
     document.addEventListener('DOMContentLoaded', function() {

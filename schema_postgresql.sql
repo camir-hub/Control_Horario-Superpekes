@@ -5,18 +5,11 @@ BEGIN;
 -- Esquema actualizado a 27/03/2026 según modelos activos en app.py
 -- Ejecutar conectado a la base de datos: control_horario
 
-BEGIN;
-
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS time_entries CASCADE;
-DROP TABLE IF EXISTS company_profile CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(80) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    rol VARCHAR(20) NOT NULL DEFAULT 'employee',
+    rol VARCHAR(20) NOT NULL DEFAULT '',
     first_name VARCHAR(120) NOT NULL DEFAULT '',
     last_name VARCHAR(120) NOT NULL DEFAULT '',
     tax_id VARCHAR(40) NOT NULL DEFAULT '',
@@ -102,21 +95,6 @@ COMMIT;
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(120) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(120) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS tax_id VARCHAR(40) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS affiliation_number VARCHAR(32) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(150) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS employment_type VARCHAR(30) NOT NULL DEFAULT 'Interno';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS address VARCHAR(200) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS postal_code VARCHAR(10) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR(100) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS province VARCHAR(100) NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR(100) NOT NULL DEFAULT 'Espana';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
-
 CREATE TABLE IF NOT EXISTS company_profile (
     id SERIAL PRIMARY KEY,
     company_name VARCHAR(150) NOT NULL DEFAULT '',
@@ -132,19 +110,6 @@ CREATE TABLE IF NOT EXISTS company_profile (
     processing_manager_accepted BOOLEAN NOT NULL DEFAULT FALSE,
     updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
-
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS company_name VARCHAR(150) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS tax_id VARCHAR(40) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS fiscal_address VARCHAR(255) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS postal_code VARCHAR(20) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS city VARCHAR(120) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS province VARCHAR(120) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS country VARCHAR(120) NOT NULL DEFAULT 'Espana';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS phone VARCHAR(40) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS referral_source VARCHAR(120) NOT NULL DEFAULT '';
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS data_policy_accepted BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS processing_manager_accepted BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
 
 CREATE TABLE IF NOT EXISTS time_entries (
     id SERIAL PRIMARY KEY,
@@ -171,16 +136,6 @@ CREATE TABLE IF NOT EXISTS time_entries (
     )
 );
 
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS comments TEXT NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS location_latitude DOUBLE PRECISION NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS location_longitude DOUBLE PRECISION NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS pause_start TIME NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS pause_end TIME NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS overtime_start TIME NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS overtime_end TIME NULL;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS overtime_validated BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
-
 -- Rellenar created_at en registros antiguos de time_entries si está vacío
 UPDATE time_entries
 SET created_at = COALESCE(created_at, work_date::timestamp + check_in, NOW())
@@ -199,16 +154,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
 );
 
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor_user_id INTEGER;
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS target_user_id INTEGER;
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS time_entry_id INTEGER;
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS entity_type VARCHAR(30);
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS entity_id INTEGER;
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS action VARCHAR(30);
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS reason TEXT;
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT NOT NULL DEFAULT '';
-ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW();
-
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_rol_active ON users(rol, active);
 CREATE INDEX IF NOT EXISTS idx_time_entries_user_date ON time_entries(user_id, work_date);
@@ -220,12 +165,14 @@ INSERT INTO company_profile (id)
 VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO users (username, password_hash, first_name, last_name, email, phone, address, postal_code, city, province, country, rol, active)
+INSERT INTO users (username, password_hash, first_name, last_name, tax_id, affiliation_number,email, phone, address, postal_code, city, province, country, rol, active)
 VALUES (
     'Administrador',
     'scrypt:32768:8:1$pmiB2BJlbleLOFKy$41e1499a07564146168bd0d45e9617a9de89491814ebf54824cbd9a88eb0dbc020095c8b8734a7a8e196d5064c1f08dca320cd774b75258f67534dd7d5506b1d',
     'Diana',
     '-----',
+    'N/A',
+    'N/A',
     'camir.bureau@gmail.com',
     '679911494',
     'Santa Cruz de Bezana',

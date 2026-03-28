@@ -117,6 +117,17 @@
             border-radius: 10px;
             padding: 11px 14px;
             font-weight: 600;
+            font-size: 0.98rem;
+        }
+
+        .flash-habilitado {
+            font-size: 0.90rem !important;
+            font-weight: 400;
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #b45309 !important;
+            padding: 8px 12px;
+            margin-bottom: 0.5em;
         }
 
         .panel {
@@ -258,7 +269,11 @@
             {% with messages = get_flashed_messages() %}
                 {% if messages %}
                     {% for message in messages %}
+                        {% if 'habilitado para el usuario' in message %}
+                        <div class="flash flash-habilitado">{{ message }}</div>
+                        {% else %}
                         <div class="flash">{{ message }}</div>
+                        {% endif %}
                     {% endfor %}
                 {% endif %}
             {% endwith %}
@@ -320,10 +335,13 @@
                                 <th>Correo</th>
                                 <th>Teléfono</th>
                                 <th>Rol</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in users %}
+                            {% set admins = users | selectattr('rol', 'equalto', 'admin') | list %}
+                            {% set empleados = users | rejectattr('rol', 'equalto', 'admin') | list %}
+                            {% for user in admins + empleados %}
                             <tr>
                                 <td>{{ user.first_name or '-' }}</td>
                                 <td>{{ user.last_name or '-' }}</td>
@@ -336,10 +354,19 @@
                                 <td>{{ user.email or '-' }}</td>
                                 <td>{{ user.phone or '-' }}</td>
                                 <td>{{ user.rol|capitalize }}</td>
+                                <td>
+                                    {% if user.rol != 'admin' %}
+                                    <form method="post" action="{{ url_for('admin_enable_editable_day') }}" style="display:flex; align-items:center; gap:10px;">
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="date" name="work_date" required style="padding:2px 6px; min-width:120px; flex:1;">
+                                        <button type="submit" class="btn" style="padding:8px 18px; font-size:0.98rem; min-width:110px;">Habilitar</button>
+                                    </form>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="11" class="dim">No hay empleados registrados todavía.</td>
+                                <td colspan="12" class="dim">No hay empleados registrados todavía.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

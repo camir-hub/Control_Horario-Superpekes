@@ -192,14 +192,21 @@
 		</div>
 
 		<!-- Panel de login normal -->
-		<div class="panel-section{% if mode not in ['forgot', 'forgot-request', 'forgot-verify'] %} active{% endif %}" id="panel-login">
-			{% with messages = get_flashed_messages(category_filter=['admin_login']) %}
-				{% if messages %}
-					{% for msg in messages %}
-						<div class="alert">{{ msg }}</div>
-					{% endfor %}
-				{% endif %}
-			{% endwith %}
+		   <div class="panel-section{% if mode not in ['forgot', 'forgot-request', 'forgot-verify'] %} active{% endif %}" id="panel-login">
+			   {% with messages = get_flashed_messages(category_filter=['success']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert" style="background: #166534; color: #bbf7d0; border: 1px solid #bbf7d0;">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
+			   {% with messages = get_flashed_messages(category_filter=['admin_login']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
 
 			<form method="POST" action="{{ url_for('admin_login') }}">
 				<label for="username">Usuario</label>
@@ -214,14 +221,21 @@
 
 
 		<!-- Panel de solicitud de código -->
-		<div class="panel-section{% if mode in ['forgot', 'forgot-request'] %} active{% endif %}" id="panel-forgot-request">
-			{% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
-				{% if messages %}
-					{% for msg in messages %}
-						<div class="alert">{{ msg }}</div>
-					{% endfor %}
-				{% endif %}
-			{% endwith %}
+		   <div class="panel-section{% if mode in ['forgot', 'forgot-request'] %} active{% endif %}" id="panel-forgot-request">
+			   {% with messages = get_flashed_messages(category_filter=['success']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert" style="background: #166534; color: #bbf7d0; border: 1px solid #bbf7d0;">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
+			   {% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
 
 			<form method="POST" action="{{ url_for('admin_password_reset_request') }}">
 				<label for="forgot-username-request">Usuario administrador</label>
@@ -236,14 +250,21 @@
 		</div>
 
 		<!-- Panel de verificación de código y cambio de contraseña -->
-		<div class="panel-section{% if mode == 'forgot-verify' %} active{% endif %}" id="panel-forgot-verify">
-			{% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
-				{% if messages %}
-					{% for msg in messages %}
-						<div class="alert">{{ msg }}</div>
-					{% endfor %}
-				{% endif %}
-			{% endwith %}
+		   <div class="panel-section{% if mode == 'forgot-verify' %} active{% endif %}" id="panel-forgot-verify">
+			   {% with messages = get_flashed_messages(category_filter=['success']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert" style="background: #166534; color: #bbf7d0; border: 1px solid #bbf7d0;">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
+			   {% with messages = get_flashed_messages(category_filter=['admin_forgot']) %}
+				   {% if messages %}
+					   {% for msg in messages %}
+						   <div class="alert">{{ msg }}</div>
+					   {% endfor %}
+				   {% endif %}
+			   {% endwith %}
 
 			<form method="POST" action="{{ url_for('admin_password_reset_verify') }}">
 				<input type="hidden" name="username" value="{{ username|default('') }}">

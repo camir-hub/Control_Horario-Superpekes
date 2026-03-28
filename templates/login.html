@@ -219,15 +219,20 @@
 			font-weight: 700;
 		}
 
-		.alert {
-			margin: 0 0 12px;
-			padding: 10px 11px;
-			border-radius: 10px;
-			font-size: 0.9rem;
-			border: 1px solid var(--danger-border);
-			background: var(--danger-bg);
-			color: #fee2e2;
-		}
+		   .alert {
+			   margin: 0 0 12px;
+			   padding: 10px 11px;
+			   border-radius: 10px;
+			   font-size: 0.9rem;
+			   border: 1px solid var(--danger-border);
+			   background: var(--danger-bg);
+			   color: #fee2e2;
+		   }
+		   .alert-success {
+			   border: 1px solid #bbf7d0;
+			   background: #166534;
+			   color: #bbf7d0;
+		   }
 
 		@media (max-width: 900px) {
 			.shell {
@@ -269,14 +274,21 @@
 				<button class="tab-btn{% if mode == 'forgot' %} active{% endif %}" data-tab="forgot">Olvidé contraseña</button>
 			</div>
 
-			<div class="panel-section{% if mode == 'login' %} active{% endif %}" id="panel-login">
-				{% with messages = get_flashed_messages(category_filter=['login']) %}
-					{% if messages %}
-						{% for msg in messages %}
-							<div class="alert">{{ msg }}</div>
-						{% endfor %}
-					{% endif %}
-				{% endwith %}
+			   <div class="panel-section{% if mode == 'login' %} active{% endif %}" id="panel-login">
+				   {% with messages = get_flashed_messages(category_filter=['success']) %}
+					   {% if messages %}
+						   {% for msg in messages %}
+							   <div class="alert alert-success">{{ msg }}</div>
+						   {% endfor %}
+					   {% endif %}
+				   {% endwith %}
+				   {% with messages = get_flashed_messages(category_filter=['login']) %}
+					   {% if messages %}
+						   {% for msg in messages %}
+							   <div class="alert">{{ msg }}</div>
+						   {% endfor %}
+					   {% endif %}
+				   {% endwith %}
 				<form method="POST" action="{{ url_for('login') }}">
 					<label for="login-username">Usuario</label>
 					<input id="login-username" type="text" name="username" autocomplete="username" required>
@@ -289,14 +301,21 @@
 				</form>
 			</div>
 
-			<div class="panel-section{% if mode == 'forgot' %} active{% endif %}" id="panel-forgot">
-				{% with messages = get_flashed_messages(category_filter=['forgot']) %}
-					{% if messages %}
-						{% for msg in messages %}
-							<div class="alert">{{ msg }}</div>
-						{% endfor %}
-					{% endif %}
-				{% endwith %}
+			   <div class="panel-section{% if mode == 'forgot' %} active{% endif %}" id="panel-forgot">
+				   {% with messages = get_flashed_messages(category_filter=['success']) %}
+					   {% if messages %}
+						   {% for msg in messages %}
+							   <div class="alert alert-success">{{ msg }}</div>
+						   {% endfor %}
+					   {% endif %}
+				   {% endwith %}
+				   {% with messages = get_flashed_messages(category_filter=['forgot']) %}
+					   {% if messages %}
+						   {% for msg in messages %}
+							   <div class="alert">{{ msg }}</div>
+						   {% endfor %}
+					   {% endif %}
+				   {% endwith %}
 				<form method="POST" action="{{ url_for('forgot_password') }}">
 					<label for="forgot-username">Usuario</label>
 					<input id="forgot-username" type="text" name="username" autocomplete="username" required>
@@ -311,7 +330,7 @@
 					<input id="forgot-email" type="email" name="email" autocomplete="email" required>
 
 					<button type="submit" class="cta">Cambiar contraseña</button>
-					<p class="hint">Este formulario también aplica solo a empleados.</p>
+					<p class="hint">Este formulario aplica solo a empleados.</p>
 				</form>
 			</div>
 		</section>

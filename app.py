@@ -1,5 +1,4 @@
 def get_yearly_overtime(user_id, year):
-    from datetime import date
     year_start = date(year, 1, 1)
     year_end = date(year, 12, 31)
     entries = TimeEntry.query.filter(
@@ -8,14 +7,14 @@ def get_yearly_overtime(user_id, year):
         TimeEntry.work_date <= year_end,
     ).all()
     return round(sum(overtime_hours(item) for item in entries), 2)
-import io
+
 import os
 import re
 from datetime import date, datetime, timedelta
 from functools import wraps
+import io
 
 from dotenv import load_dotenv
-
 load_dotenv()
 
 from flask import (
@@ -28,7 +27,9 @@ from flask import (
     request,
     send_file,
     url_for,
+    session,
 )
+from flask_mail import Mail, Message
 from flask_login import (
     LoginManager,
     UserMixin,
@@ -38,6 +39,15 @@ from flask_login import (
     logout_user,
 )
 from flask_sqlalchemy import SQLAlchemy
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+            flash("Acceso solo para administradores", "error")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated_function
 from sqlalchemy import inspect, text, and_
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from openpyxl import Workbook
@@ -60,12 +70,79 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Configuración de Flask-Mail
+
+# Flask-Mail config
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.example.com")
 app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
 app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
 app.config["MAIL_USERNAME"] = os.getenv("MAIL_USERNAME", "")
 app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
+
+mail = Mail(app)
+# ===== RECUPERACIÓN DE CONTRASEÑA PARA ADMINISTRADORES =====
+
+import random
+import string
+
+@app.route("/admin-password-reset-request", methods=["GET", "POST"])
+def admin_password_reset_request():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        user = User.query.filter_by(email=email, rol="admin").first()
+        if not user:
+            flash("No se encontró un administrador con ese correo electrónico", "error")
+            return render_template("admin_password_reset_request.html")
+        # Generar código de verificación
+        code = ''.join(random.choices(string.digits, k=6))
+        session["admin_reset_code"] = code
+        session["admin_reset_email"] = email
+        # Enviar email
+        msg = Message("Código de verificación para restablecer contraseña", recipients=[email])
+        msg.body = f"Tu código de verificación es: {code}"
+        mail.send(msg)
+        flash("Se ha enviado un código de verificación a tu correo electrónico.", "info")
+        return redirect(url_for("admin_password_reset_verify"))
+    return render_template("admin_password_reset_request.html")
+
+@app.route("/admin-password-reset-verify", methods=["GET", "POST"])
+def admin_password_reset_verify():
+    email = session.get("admin_reset_email")
+    expected_code = session.get("admin_reset_code")
+    username = ""
+    if not email or not expected_code:
+        flash("Debes solicitar primero el código de verificación.", "error")
+        return redirect(url_for("admin_password_reset_request"))
+    if request.method == "POST":
+        code = request.form.get("code", "").strip()
+        new_password = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+        username = request.form.get("username", "")
+        if code != expected_code:
+            flash("Código de verificación incorrecto.", "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-verify", username=username)
+        if not new_password or not confirm:
+            flash("Debes ingresar y confirmar la nueva contraseña.", "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-verify", username=username)
+        if new_password != confirm:
+            flash("Las contraseñas no coinciden.", "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-verify", username=username)
+        password_error = validate_password_strength(new_password)
+        if password_error:
+            flash(password_error, "admin_forgot")
+            return render_template("admin_login.html", mode="forgot-verify", username=username)
+        user = User.query.filter_by(email=email, rol="admin").first()
+        if not user:
+            flash("No se encontró un administrador con ese correo electrónico", "admin_forgot")
+            return redirect(url_for("admin_password_reset_request"))
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        # Limpiar sesión
+        session.pop("admin_reset_code", None)
+        session.pop("admin_reset_email", None)
+        flash("Contraseña actualizada correctamente. Ya puedes iniciar sesión.", "success")
+        return redirect(url_for("admin_login"))
+    return render_template("admin_login.html", mode="forgot-verify", username=username)
 
 MAX_WEEKLY_HOURS = 40.0
 
@@ -145,6 +222,18 @@ class AuditLog(db.Model):
     target_user = db.relationship("User", foreign_keys=[target_user_id])
     time_entry = db.relationship("TimeEntry", foreign_keys=[time_entry_id])
 
+
+class EditableDay(db.Model):
+    __tablename__ = "editable_days"
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    work_date = db.Column(db.Date, nullable=False)
+    enabled_by_admin_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    used = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Relaciones opcionales
+    user = db.relationship("User", foreign_keys=[user_id], backref="editable_days")
+    enabled_by_admin = db.relationship("User", foreign_keys=[enabled_by_admin_id])
 
 class CompanyProfile(db.Model):
     __tablename__ = "company_profile"
@@ -337,7 +426,7 @@ def report_employee_users():
 
 
 def report_context(month):
-    active_user = request_user()
+    active_user = current_user
     selected_user_id = active_user.id
     include_all = False
 
@@ -679,7 +768,7 @@ def forgot_password():
         details="Cambio de contraseña sin sesión activa",
     )
     db.session.commit()
-    flash("Contraseña actualizada. Ya puedes iniciar sesión", "login")
+    flash("Contraseña actualizada. Ya puedes iniciar sesión", "success")
     return render_template("login.html", mode="login")
 
 
@@ -773,6 +862,7 @@ def home():
 @app.route("/calendar")
 @login_required
 def calendar():
+    editable_days = []  # <- PRIMERA línea SIEMPRE
     day_value = date.today()
     if request.args.get("day"):
         try:
@@ -865,10 +955,14 @@ def calendar():
 
     selected_entry = entries_by_day_map.get(day_value, [None])[0]
 
-    # Weekly metrics for the week containing selected day (across month boundaries)
+    # Weekly metrics para la semana del día seleccionado
     weekly_stats = weekly_breakdown_for_user(selected_user_id, day_value)
 
     allow_entry_edit = bool(selected_entry and can_edit_entry(current_user, selected_entry))
+
+    # Solo para empleados, obtener días habilitados
+    if not current_user.is_admin:
+        editable_days = [ed.work_date.isoformat() for ed in EditableDay.query.filter_by(user_id=current_user.id, used=False).filter(EditableDay.work_date >= month_start, EditableDay.work_date <= month_end).all()]
 
     return render_template(
         "calendar.html",
@@ -898,6 +992,7 @@ def calendar():
         yearly_overtime_limit=weekly_stats.get("yearly_overtime_limit", 80),
         user_page=user_page,
         total_pages=total_pages,
+        editable_days=editable_days,
     )
 
 
@@ -931,10 +1026,15 @@ def add_entry():
     if current_user.is_admin and request.form.get("user_id"):
         target_user_id = int(request.form["user_id"])
 
-    # Empleado: solo puede crear su registro del dia actual.
+    # Empleado: solo puede crear su registro del dia actual o si el admin ha habilitado el día.
     if not current_user.is_admin and normalized["work_date"] != date.today():
-        flash("Solo puedes registrar la jornada del dia actual")
-        return redirect(url_for("calendar"))
+        editable = EditableDay.query.filter_by(user_id=current_user.id, work_date=normalized["work_date"], used=False).first()
+        if not editable:
+            flash("Solo puedes registrar la jornada del dia actual, salvo que el administrador habilite el día para ti.")
+            return redirect(url_for("calendar"))
+        # Marcar el editable_day como usado
+        editable.used = True
+        db.session.commit()
 
     exists = TimeEntry.query.filter_by(user_id=target_user_id, work_date=normalized["work_date"]).first()
     if exists:
@@ -1111,10 +1211,8 @@ def update_entry(entry_id):
 
 @app.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
 @login_required
+@admin_required
 def reset_user_password(user_id):
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     user = db.session.get(User, user_id)
     if not user:
@@ -1155,10 +1253,8 @@ def reset_user_password(user_id):
 
 @app.route("/admin", methods=["GET"])
 @login_required
+@admin_required
 def admin_dashboard():
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     users = User.query.order_by(User.username.asc()).all()
     total_users = len(users)
@@ -1223,10 +1319,8 @@ def admin_dashboard():
 
 @app.route("/admin/company", methods=["GET", "POST"])
 @login_required
+@admin_required
 def admin_company():
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     profile = get_company_profile()
 
@@ -1267,10 +1361,8 @@ def admin_company():
 
 @app.route("/admin/users", methods=["GET", "POST"])
 @login_required
+@admin_required
 def admin_users():
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -1368,7 +1460,11 @@ def admin_users():
         page = 1
     if page > total_pages:
         page = 1
-    users = User.query.order_by(User.username.asc()).offset((page-1)*page_size).limit(page_size).all()
+    # Ordenar primero por admin (admin primero), luego por nombre
+    users = User.query.order_by(
+        db.case((User.rol == "admin", 0), else_=1),
+        User.username.asc()
+    ).offset((page-1)*page_size).limit(page_size).all()
     response = make_response(render_template("admin_users.html", users=users, page=page, total_pages=total_pages))
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -1378,10 +1474,8 @@ def admin_users():
 
 @app.route("/admin/users/<int:user_id>/toggle", methods=["POST"])
 @login_required
+@admin_required
 def toggle_user(user_id):
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     user = db.session.get(User, user_id)
     if not user:
@@ -1419,10 +1513,8 @@ def toggle_user(user_id):
 
 @app.route("/admin/validate-hours", methods=["GET"])
 @login_required
+@admin_required
 def admin_validate_hours():
-    if not current_user.is_admin:
-        flash("Acceso denegado")
-        return redirect(url_for("calendar"))
 
     month = request.args.get("month") or date.today().strftime("%Y-%m")
     selected_user_id = (request.args.get("user_id") or "all").strip()
@@ -1479,9 +1571,8 @@ def admin_validate_hours():
 
 @app.route("/admin/toggle-validation/<int:entry_id>", methods=["POST"])
 @login_required
+@admin_required
 def toggle_validation(entry_id):
-    if not current_user.is_admin:
-        return jsonify({"error": "Acceso denegado"}), 403
 
     entry = db.session.get(TimeEntry, entry_id)
     if not entry:
@@ -1742,12 +1833,7 @@ def report_excel():
         for col, value in enumerate(values, start=1):
             cell = sheet.cell(row=data_row, column=col, value=value)
             # Borde completo para los datos
-            cell.border = Border(
-                left=Side(style="thin", color=line_blue),
-                right=Side(style="thin", color=line_blue),
-                top=Side(style="thin", color=line_blue),
-                bottom=Side(style="thin", color=line_blue),
-            )
+            cell.border = border
             # Justificar a la izquierda, centrar verticalmente y agregar indentación a todos los datos
             if col == 8:
                 cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
@@ -2221,7 +2307,7 @@ def api_me():
 
 
 @app.get("/api/users")
-## API eliminada: decorador removido
+@admin_required
 def api_users_list():
     users = User.query.order_by(User.username.asc()).all()
     return jsonify(
@@ -2239,7 +2325,7 @@ def api_users_list():
 
 
 @app.post("/api/users")
-## API eliminada: decorador removido
+@admin_required
 def api_users_create():
     data = request.get_json(silent=True) or {}
     username = (data.get("username") or "").strip()
@@ -2274,7 +2360,7 @@ def api_users_create():
 
 
 @app.patch("/api/users/<int:user_id>/status")
-## API eliminada: decorador removido
+@admin_required
 def api_user_toggle(user_id):
     user = db.session.get(User, user_id)
     if not user:
@@ -2304,7 +2390,7 @@ def api_user_toggle(user_id):
 
 
 @app.patch("/api/users/<int:user_id>/password")
-## API eliminada: decorador removido
+@admin_required
 def api_user_reset_password(user_id):
     user = db.session.get(User, user_id)
     if not user:
@@ -2337,7 +2423,7 @@ def api_user_reset_password(user_id):
 
 
 @app.get("/api/entries")
-## API eliminada: decorador removido
+@admin_required
 def api_entries_list():
     api_user = request.api_user
     day_raw = request.args.get("day") or date.today().isoformat()
@@ -2374,7 +2460,7 @@ def api_entries_list():
 
 
 @app.post("/api/entries")
-## API eliminada: decorador removido
+@admin_required
 def api_entries_create():
     api_user = request.api_user
     data = request.get_json(silent=True) or {}
@@ -2388,7 +2474,13 @@ def api_entries_create():
         target_user_id = int(data["user_id"])
 
     if not api_user.is_admin and normalized["work_date"] != date.today():
-        return jsonify({"error": "Solo puedes crear el registro del dia actual"}), 403
+        editable = EditableDay.query.filter_by(user_id=current_user.id, work_date=normalized["work_date"], used=False).first()
+        if not editable:
+            flash("Solo puedes registrar la jornada del dia actual, salvo que el administrador habilite el día para ti.")
+            return redirect(url_for("calendar"))
+        # Marcar el editable_day como usado
+        editable.used = True
+        db.session.commit()
 
     existing = TimeEntry.query.filter_by(user_id=target_user_id, work_date=normalized["work_date"]).first()
     if existing:
@@ -2427,7 +2519,7 @@ def api_entries_create():
 
 
 @app.patch("/api/entries/<int:entry_id>")
-## API eliminada: decorador removido
+@admin_required
 def api_entry_update(entry_id):
     api_user = request.api_user
     entry = db.session.get(TimeEntry, entry_id)
@@ -2499,7 +2591,7 @@ def api_entry_update(entry_id):
 
 
 @app.post("/api/entries/<int:entry_id>/validate")
-## API eliminada: decorador removido
+@admin_required
 def api_entry_validate(entry_id):
     entry = db.session.get(TimeEntry, entry_id)
     if not entry:
@@ -2521,7 +2613,7 @@ def api_entry_validate(entry_id):
 
 
 @app.get("/api/audit-logs")
-## API eliminada: decorador removido
+@admin_required
 def api_audit_logs():
     logs = latest_audit_logs(limit=100)
     return jsonify(
@@ -2544,7 +2636,7 @@ def api_audit_logs():
 
 
 @app.get("/api/reports/monthly")
-## API eliminada: decorador removido
+@admin_required
 def api_monthly_report():
     api_user = request.api_user
     month = request.args.get("month") or date.today().strftime("%Y-%m")
@@ -2574,13 +2666,13 @@ def api_monthly_report():
 
 
 @app.get("/api/reports/monthly/excel")
-## API eliminada: decorador removido
+@admin_required
 def api_report_excel():
     return report_excel()
 
 
 @app.get("/api/reports/monthly/pdf")
-## API eliminada: decorador removido
+@admin_required
 def api_report_pdf():
     return report_pdf()
 
@@ -2590,67 +2682,10 @@ def api_report_pdf():
     pass
 
 
-@app.route("/admin-password-reset-request", methods=["GET", "POST"])
-def admin_password_reset_request():
-    """Solicita usuario y correo para enviar código de recuperación."""
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip()
-        
-        if not username or not email:
-            flash("Completa usuario y correo electrónico", "admin_forgot")
-            return render_template("admin_login.html", mode="forgot-request")
-
-        user = User.query.filter_by(username=username, email=email, rol="admin", active=True).first()
-        if not user:
-            flash("Usuario o correo no válido", "admin_forgot")
-            return render_template("admin_login.html", mode="forgot-request")
-
-        # Generar código único de 6 dígitos
-        code = '000000'  # Código fijo, lógica de generación eliminada
-        expires_at = datetime.utcnow() + timedelta(minutes=10)
-
-
-
-        # Enviar el correo con el código
-        try:
-            pass  # Llamada eliminada
-            flash("Código enviado al correo electrónico si los datos son correctos", "admin_forgot")
-        except Exception as e:
-            flash("No se pudo enviar el correo. Contacta al administrador.", "admin_forgot")
-        
-        return render_template("admin_login.html", mode="forgot-verify", username=username)
 
     return render_template("admin_login.html", mode="forgot-request")
 
 
-@app.route("/admin-password-reset-verify", methods=["POST"])
-def admin_password_reset_verify():
-    """Verifica el código y cambia la contraseña del administrador."""
-    username = request.form.get("username", "").strip()
-    code = request.form.get("code", "").strip().replace(" ", "")
-    new_password = request.form.get("new_password", "")
-    confirm = request.form.get("confirm_password", "")
-
-    if not username or not code or not new_password or not confirm:
-        flash("Completa todos los campos", "admin_forgot")
-        return render_template("admin_login.html", mode="forgot-verify", username=username)
-
-    if new_password != confirm:
-        flash("Las contraseñas no coinciden", "admin_forgot")
-        return render_template("admin_login.html", mode="forgot-verify", username=username)
-
-    password_error = validate_password_strength(new_password)
-    if password_error:
-        flash(password_error, "admin_forgot")
-        return render_template("admin_login.html", mode="forgot-verify", username=username)
-
-    user = User.query.filter_by(username=username, rol="admin", active=True).first()
-    if not user:
-        flash("Usuario no válido", "admin_forgot")
-        return render_template("admin_login.html", mode="forgot-verify", username=username)
-
-    # Aquí se debería validar el código y actualizar la contraseña, pero el modelo PasswordResetCode ha sido eliminado.
     # Si se requiere funcionalidad de recuperación, debe implementarse de otra forma o restaurar el modelo.
     # Por ahora, solo mostramos un error genérico.
     flash("Funcionalidad de recuperación de contraseña deshabilitada. Contacta al administrador.", "admin_forgot")
@@ -2669,6 +2704,34 @@ def admin_password_reset_verify():
 
     flash("Contraseña restablecida con éxito. Ya puedes iniciar sesión.", "admin_login")
     return render_template("admin_login.html", mode="login")
+
+
+@app.route("/admin/enable_editable_day", methods=["POST"])
+@login_required
+@admin_required
+def admin_enable_editable_day():
+
+    user_id = request.form.get("user_id")
+    work_date = request.form.get("work_date")
+    if not user_id or not work_date:
+        flash("Faltan datos para habilitar el día")
+        return redirect(url_for("admin_users"))
+
+    # Comprobar si ya existe para ese usuario y día
+    existing = EditableDay.query.filter_by(user_id=user_id, work_date=work_date).first()
+    if existing:
+        flash("Ese día ya está habilitado para este usuario.", "warning")
+        return redirect(url_for("admin_users"))
+
+    editable_day = EditableDay(
+        user_id=user_id,
+        work_date=work_date,
+        enabled_by_admin_id=current_user.id
+    )
+    db.session.add(editable_day)
+    db.session.commit()
+    flash(f"Día {work_date} habilitado para el usuario.")
+    return redirect(url_for("admin_users"))
 
 
 with app.app_context():
