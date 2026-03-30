@@ -8,10 +8,10 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: control-horario
+          name: db-superpekes
           property: connectionString
 
 # Configuración de la base de datos PostgreSQL
 databases:
-  - name: control-horario
+  - name: db-superpekes
     plan: free # Nivel gratuitoco
