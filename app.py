@@ -10,6 +10,9 @@ def get_yearly_overtime(user_id, year):
 
 import os
 # Esto lee la dirección secreta que Render le da a tu app
+# 1. Primero creas la aplicación
+app = Flask(__name__)
+# 2. Después la configuras
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 import re
 from datetime import date, datetime, timedelta
