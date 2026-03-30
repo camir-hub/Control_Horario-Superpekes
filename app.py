@@ -9,6 +9,8 @@ def get_yearly_overtime(user_id, year):
     return round(sum(overtime_hours(item) for item in entries), 2)
 
 import os
+# Esto lee la dirección secreta que Render le da a tu app
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 import re
 from datetime import date, datetime, timedelta
 from functools import wraps
