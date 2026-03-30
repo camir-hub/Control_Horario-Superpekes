@@ -1,0 +1,17 @@
+services:
+  # Configuración de tu aplicación Flask
+  - type: web
+    name: control-horario-superpekes
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: db-superpekes
+          property: connectionString
+
+# Configuración de la base de datos PostgreSQL
+databases:
+  - name: db-superpekes
+    plan: free # Nivel gratuito
