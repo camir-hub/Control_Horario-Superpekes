@@ -1,23 +1,11 @@
-def get_yearly_overtime(user_id, year):
-    year_start = date(year, 1, 1)
-    year_end = date(year, 12, 31)
-    entries = TimeEntry.query.filter(
-        TimeEntry.user_id == user_id,
-        TimeEntry.work_date >= year_start,
-        TimeEntry.work_date <= year_end,
-    ).all()
-    return round(sum(overtime_hours(item) for item in entries), 2)
-
 import os
-# Esto lee la dirección secreta que Render le da a tu app
-# 1. Primero creas la aplicación
-#app = Flask(__name__)
-# 2. Después la configuras
-#app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+import base64
+import io
+import random
 import re
+import string
 from datetime import date, datetime, timedelta
 from functools import wraps
-import io
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -45,26 +33,27 @@ from flask_login import (
 )
 
 from flask_sqlalchemy import SQLAlchemy
+from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XlImage
+from openpyxl.styles import Alignment, Font, PatternFill, GradientFill, Border, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.properties import PageSetupProperties
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
+from sqlalchemy import func, inspect, text
+from sqlalchemy.orm import joinedload
+from werkzeug.security import check_password_hash, generate_password_hash
+
 
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not getattr(current_user, 'is_admin', False):
+        if not current_user.is_authenticated or not getattr(current_user, "is_admin", False):
             flash("Acceso solo para administradores", "error")
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated_function
-from sqlalchemy import inspect, text, and_
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill, GradientFill, Border, Side
-from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.properties import PageSetupProperties
-from openpyxl.drawing.image import Image as XlImage
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.pdfgen import canvas
-
-from werkzeug.security import check_password_hash, generate_password_hash
 
 
 app = Flask(__name__)
@@ -75,9 +64,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# Configuración de Flask-Mail
-
-# Flask-Mail config
+# Configuracion de Flask-Mail
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.example.com")
 app.config["MAIL_PORT"] = int(os.getenv("MAIL_PORT", 587))
 app.config["MAIL_USE_TLS"] = os.getenv("MAIL_USE_TLS", "true").lower() == "true"
@@ -86,10 +73,7 @@ app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
 
 mail = Mail(app)
-# ===== RECUPERACIÓN DE CONTRASEÑA PARA ADMINISTRADORES =====
-
-import random
-import string
+# ===== RECUPERACION DE CONTRASENA PARA ADMINISTRADORES =====
 
 @app.route("/admin-password-reset-request", methods=["GET", "POST"])
 def admin_password_reset_request():
@@ -100,7 +84,7 @@ def admin_password_reset_request():
             flash("No se encontró un administrador con ese correo electrónico", "error")
             return render_template("admin_password_reset_request.html")
         # Generar código de verificación
-        code = ''.join(random.choices(string.digits, k=6))
+        code = "".join(random.choices(string.digits, k=6))
         session["admin_reset_code"] = code
         session["admin_reset_email"] = email
         # Enviar email
@@ -241,6 +225,25 @@ class EditableDay(db.Model):
     user = db.relationship("User", foreign_keys=[user_id], backref="editable_days")
     enabled_by_admin = db.relationship("User", foreign_keys=[enabled_by_admin_id])
 
+
+class MonthlySignature(db.Model):
+    __tablename__ = "monthly_signatures"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    month_key = db.Column(db.String(7), nullable=False)
+    signed_name = db.Column(db.String(180), nullable=False, default="")
+    signature_data_url = db.Column(db.Text, nullable=True)
+    signature_ip = db.Column(db.String(64), nullable=True)
+    signature_user_agent = db.Column(db.String(255), nullable=True)
+    signed_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="monthly_signatures")
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "month_key", name="uq_monthly_signatures_user_month"),
+    )
+
 class CompanyProfile(db.Model):
     __tablename__ = "company_profile"
 
@@ -258,9 +261,6 @@ class CompanyProfile(db.Model):
     processing_manager_accepted = db.Column(db.Boolean, nullable=False, default=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-
-
-
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -272,10 +272,6 @@ def parse_iso_date(value):
 
 def parse_hhmm(value):
     return datetime.strptime(value, "%H:%M").time()
-
-
-
-
 
 def combine_dt(day_value, time_value):
     return datetime.combine(day_value, time_value)
@@ -307,6 +303,17 @@ def overtime_hours(entry):
         delta = combine_dt(entry.work_date, entry.overtime_end) - combine_dt(entry.work_date, entry.overtime_start)
         return max(0.0, round(delta.total_seconds() / 3600, 2))
     return 0.0
+
+
+def get_yearly_overtime(user_id, year):
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    entries = TimeEntry.query.filter(
+        TimeEntry.user_id == user_id,
+        TimeEntry.work_date >= year_start,
+        TimeEntry.work_date <= year_end,
+    ).all()
+    return round(sum(overtime_hours(item) for item in entries), 2)
 
 
 def week_bounds(day_value):
@@ -386,6 +393,9 @@ def create_audit_log(actor_user_id, entity_type, action, reason, details, target
 def can_edit_entry(user, entry):
     if user.is_admin:
         return True
+    month_key = entry.work_date.strftime("%Y-%m")
+    if MonthlySignature.query.filter_by(user_id=entry.user_id, month_key=month_key).first():
+        return False
     if entry.overtime_validated:
         return False
     return entry.user_id == user.id and entry.work_date == date.today()
@@ -408,9 +418,88 @@ def request_user():
     return current_user
 
 
-def monthly_entries(month, selected_user_id):
+def month_bounds(month):
     month_start = datetime.strptime(month + "-01", "%Y-%m-%d").date()
     month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return month_start, month_end
+
+
+def monthly_signature_status(month, user_id, entries=None):
+    month_start, month_end = month_bounds(month)
+    month_closed = date.today() >= month_end
+    if entries is None:
+        entries = (
+            TimeEntry.query.filter(
+                TimeEntry.user_id == user_id,
+                TimeEntry.work_date >= month_start,
+                TimeEntry.work_date < month_end,
+            )
+            .order_by(TimeEntry.work_date.asc())
+            .all()
+        )
+
+    pending_count = sum(1 for item in entries if not item.overtime_validated)
+    has_entries = len(entries) > 0
+    signature = MonthlySignature.query.filter_by(user_id=user_id, month_key=month).first()
+    can_sign = has_entries and pending_count == 0 and signature is None
+
+    return {
+        "signature": signature,
+        "month_closed": month_closed,
+        "has_entries": has_entries,
+        "pending_count": pending_count,
+        "can_sign": can_sign,
+    }
+
+
+def invalidate_month_signature(user_id, work_date, actor_user_id=None, reason=""):
+    month_key = work_date.strftime("%Y-%m")
+    signature = MonthlySignature.query.filter_by(user_id=user_id, month_key=month_key).first()
+    if not signature:
+        return False
+
+    db.session.delete(signature)
+    if actor_user_id:
+        create_audit_log(
+            actor_user_id=actor_user_id,
+            target_user_id=user_id,
+            entity_type="month_signature",
+            entity_id=signature.id,
+            action="invalidate",
+            reason=reason or "Se invalida firma mensual por cambios en los registros",
+            details=f"Firma anulada para el mes {month_key}",
+        )
+    return True
+
+
+def validate_signature_data_url(signature_data_url):
+    raw_value = (signature_data_url or "").strip()
+    prefix = "data:image/png;base64,"
+
+    if not raw_value:
+        return "Debes dibujar tu firma antes de enviar el informe", None
+    if not raw_value.startswith(prefix):
+        return "La firma digital tiene un formato no valido", None
+
+    encoded = raw_value[len(prefix):]
+    try:
+        decoded = base64.b64decode(encoded, validate=True)
+    except Exception:
+        return "La firma digital no se ha podido procesar", None
+
+    # Accept short strokes while still rejecting clearly empty/invalid payloads.
+    if len(decoded) < 120:
+        return "La firma digital parece vacia. Vuelve a firmar", None
+    if len(decoded) > 1_000_000:
+        return "La firma digital es demasiado grande", None
+    if not decoded.startswith(b"\x89PNG"):
+        return "La firma digital tiene un formato no valido", None
+
+    return None, raw_value
+
+
+def monthly_entries(month, selected_user_id):
+    month_start, month_end = month_bounds(month)
     entries = (
         TimeEntry.query.filter(
             TimeEntry.user_id == selected_user_id,
@@ -575,7 +664,7 @@ def validate_entry_payload(payload):
         if combine_dt(work_date, meal_end) <= combine_dt(work_date, meal_start):
             return "El fin de comida debe ser mayor que el inicio de comida", None
         if combine_dt(work_date, meal_start) < combine_dt(work_date, check_in) or combine_dt(work_date, meal_end) > combine_dt(work_date, check_out):
-            return "La comida debe estar dentro del hora la jornada laboral", None
+            return "La comida debe estar dentro de la jornada laboral", None
 
     if bool(pause_start) != bool(pause_end):
         return "Debes informar inicio y fin de pausa", None
@@ -588,8 +677,7 @@ def validate_entry_payload(payload):
         # AVISO: Si la pausa es mayor a 15 minutos, mostrar advertencia (no bloquear, solo avisar)
         pausa_minutos = (combine_dt(work_date, pause_end) - combine_dt(work_date, pause_start)).total_seconds() / 60
         if pausa_minutos > 15:
-            import flask
-            flask.flash("Recuerda: La pausa obligatoria será de 15 minutos para jornadas de más de 6 horas según el Art. 34.4 del Estatuto de los Trabajadores. Has introducido una pausa mayor.", "warning")
+            flash("Recuerda: La pausa obligatoria será de 15 minutos para jornadas de más de 6 horas según el Art. 34.4 del Estatuto de los Trabajadores. Has introducido una pausa mayor.", "warning")
 
     if bool(overtime_start) != bool(overtime_end):
         return "Debes informar inicio y fin de horas extra", None
@@ -633,19 +721,6 @@ def validate_entry_payload(payload):
         "location_longitude": location_longitude,
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 def ensure_default_admin():
     admin = User.query.filter_by(username="admin").first()
     if admin is None:
@@ -657,6 +732,17 @@ def ensure_default_admin():
         )
         db.session.add(admin)
         db.session.commit()
+
+
+def ensure_monthly_signature_schema():
+    inspector = inspect(db.engine)
+    if "monthly_signatures" not in inspector.get_table_names():
+        return
+
+    columns = {col["name"] for col in inspector.get_columns("monthly_signatures")}
+    if "signature_data_url" not in columns:
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE monthly_signatures ADD COLUMN signature_data_url TEXT NULL"))
 
 
 def get_company_profile():
@@ -1079,6 +1165,12 @@ def add_entry():
 
     db.session.add(candidate)
     db.session.flush()
+    invalidate_month_signature(
+        user_id=target_user_id,
+        work_date=normalized["work_date"],
+        actor_user_id=current_user.id,
+        reason="Alta de registro que modifica un mes previamente firmado",
+    )
     create_audit_log(
         actor_user_id=current_user.id,
         target_user_id=target_user_id,
@@ -1192,6 +1284,12 @@ def update_entry(entry_id):
     entry.location_latitude = normalized["location_latitude"]
     entry.location_longitude = normalized["location_longitude"]
     entry.overtime_validated = False
+    invalidate_month_signature(
+        user_id=entry.user_id,
+        work_date=entry.work_date,
+        actor_user_id=current_user.id,
+        reason="Modificación de registro en mes firmado",
+    )
 
     create_audit_log(
         actor_user_id=current_user.id,
@@ -1267,7 +1365,6 @@ def admin_dashboard():
     active_users = sum(1 for user in users if user.active)
     employee_users = sum(1 for user in users if user.rol == "employee")
     today_entries = TimeEntry.query.filter(TimeEntry.work_date == date.today()).count()
-    from sqlalchemy.orm import joinedload
     # Paginación para últimos registros horarios
     horarios_page_size = 5
     horarios_page = int(request.args.get("horarios_page", 1))
@@ -1284,7 +1381,6 @@ def admin_dashboard():
     validados_page_size = 5
     validados_page = int(request.args.get("validados_page", 1))
     # Subconsulta: obtener el último audit_log con action='toggle_validation' para cada time_entry
-    from sqlalchemy import func, and_, desc
     subq = (
         db.session.query(
             AuditLog.time_entry_id,
@@ -1593,6 +1689,12 @@ def toggle_validation(entry_id):
         })
 
     entry.overtime_validated = True
+    invalidate_month_signature(
+        user_id=entry.user_id,
+        work_date=entry.work_date,
+        actor_user_id=current_user.id,
+        reason="Cambio de validación administrativa en mes firmado",
+    )
     create_audit_log(
         actor_user_id=current_user.id,
         target_user_id=entry.user_id,
@@ -1622,6 +1724,11 @@ def report():
     users = report_employee_users() if active_user.is_admin else []
 
     total = round(sum(worked_hours(item) for item in entries), 2)
+    signature_info = None
+    signature = None
+    if not include_all and selected_user_id:
+        signature_info = monthly_signature_status(month, selected_user_id, entries=entries)
+        signature = signature_info["signature"]
 
     return render_template(
         "report.html",
@@ -1638,7 +1745,69 @@ def report():
         overtime_hours=overtime_hours,
         meal_hours=meal_hours,
         pause_hours=pause_hours,
+        signature=signature,
+        signature_info=signature_info,
     )
+
+
+@app.route("/report/sign", methods=["POST"])
+@login_required
+def report_sign():
+    if current_user.is_admin:
+        flash("Solo los empleados pueden firmar su propio informe mensual", "error")
+        return redirect(url_for("report"))
+
+    month = (request.form.get("month") or date.today().strftime("%Y-%m")).strip()
+    try:
+        month_bounds(month)
+    except ValueError:
+        flash("El mes debe tener formato YYYY-MM", "error")
+        return redirect(url_for("report"))
+
+    _, _, entries = monthly_entries(month, current_user.id)
+    status = monthly_signature_status(month, current_user.id, entries=entries)
+    if not status["has_entries"]:
+        flash("No hay registros para firmar en el mes seleccionado", "error")
+        return redirect(url_for("report", month=month))
+    if status["pending_count"] > 0:
+        flash("No puedes firmar mientras existan días pendientes de validación", "error")
+        return redirect(url_for("report", month=month))
+    if status["signature"] is not None:
+        flash("Este mes ya está firmado", "success")
+        return redirect(url_for("report", month=month))
+
+    signature_error, signature_data_url = validate_signature_data_url(request.form.get("signature_data"))
+    if signature_error:
+        flash(signature_error, "error")
+        return redirect(url_for("report", month=month))
+
+    signed_name = f"{(current_user.first_name or '').strip()} {(current_user.last_name or '').strip()}".strip()
+    if not signed_name:
+        signed_name = current_user.username
+
+    signature = MonthlySignature(
+        user_id=current_user.id,
+        month_key=month,
+        signed_name=signed_name,
+        signature_data_url=signature_data_url,
+        signature_ip=(request.headers.get("X-Forwarded-For") or request.remote_addr or "")[:64],
+        signature_user_agent=(request.user_agent.string or "")[:255],
+    )
+    db.session.add(signature)
+    db.session.flush()
+    create_audit_log(
+        actor_user_id=current_user.id,
+        target_user_id=current_user.id,
+        entity_type="month_signature",
+        entity_id=signature.id,
+        action="employee_sign",
+        reason=f"Firma mensual del parte de horas: {month}",
+        details=f"Empleado firma el mes {month}",
+    )
+    db.session.commit()
+
+    flash("Informe mensual firmado correctamente", "success")
+    return redirect(url_for("report", month=month))
 
 
 @app.route("/report/excel")
@@ -1646,28 +1815,14 @@ def report():
 def report_excel():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
     active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
+    signature = None
+    if not include_all and selected_user_id:
+        signature = MonthlySignature.query.filter_by(user_id=selected_user_id, month_key=month).first()
 
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Parte de Tiempo"
-    company_profile = get_company_profile()
-
-    company_name = (company_profile.company_name or "Superpekes").strip()
-    company_city = (company_profile.city or "").strip()
-    company_country = (company_profile.country or "").strip()
-    company_city_country = ", ".join([part for part in [company_city, company_country] if part])
-    company_line = " | ".join(
-        [
-            part
-            for part in [
-                f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
-                company_profile.fiscal_address or "",
-                company_city_country,
-                f"Tel: {company_profile.phone}" if company_profile.phone else "",
-            ]
-            if part
-        ]
-    )
+    get_company_profile()
 
     if selected_user:
         full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
@@ -1749,24 +1904,6 @@ def report_excel():
         type="linear",
         degree=90,
         stop=("CCE6FA", "ADD3F2"),
-    )
-    header_border = Border(
-        left=Side(style="thin", color=line_blue),
-        right=Side(style="thin", color=line_blue),
-        top=Side(style="thin", color=line_blue),
-        bottom=Side(style="thin", color=line_blue),
-    )
-    header_top_border = Border(
-        left=Side(style="thin", color=line_blue),
-        right=Side(style="thin", color=line_blue),
-        top=Side(style="thin", color=line_blue),
-        bottom=Side(style=None),
-    )
-    header_bottom_border = Border(
-        left=Side(style="thin", color=line_blue),
-        right=Side(style="thin", color=line_blue),
-        top=Side(style=None),
-        bottom=Side(style="thin", color=line_blue),
     )
 
     # Same visual scale as validate_hours table headers (small size) and no bold.
@@ -1865,11 +2002,20 @@ def report_excel():
     firma_cell.border = border
 
     white_fill = PatternFill(start_color=white, end_color=white, fill_type="solid")
-    for col in range(2, 6):
-        cell = sheet.cell(row=summary_row, column=col, value="")
-        cell.fill = white_fill
-        cell.border = Border()
-        cell.alignment = Alignment(horizontal="center", vertical="center")
+    sheet.merge_cells(start_row=summary_row, start_column=2, end_row=summary_row, end_column=5)
+    if signature:
+        signed_at_text = signature.signed_at.strftime("%d/%m/%Y %H:%M") if signature.signed_at else "-"
+        signature_text = f"Firmado por {signature.signed_name} el {signed_at_text}"
+    elif include_all:
+        signature_text = "Firma no disponible en informe de todos los empleados"
+    else:
+        signature_text = "Pendiente de firma del empleado"
+
+    signature_info_cell = sheet.cell(row=summary_row, column=2, value=signature_text)
+    signature_info_cell.fill = white_fill
+    signature_info_cell.border = Border()
+    signature_info_cell.font = Font(size=9, color="334155")
+    signature_info_cell.alignment = Alignment(horizontal="left", vertical="center")
 
     totals_labels = [
         (6, "H.ORDINARIAS", f"{total_regular:.2f} h"),
@@ -1993,25 +2139,15 @@ def report_pdf():
     month = request.args.get("month") or date.today().strftime("%Y-%m")
     active_user, selected_user_id, selected_user, entries, change_reasons, include_all = report_context(month)
     company_profile = get_company_profile()
+    signature = None
+    if not include_all and selected_user_id:
+        signature = MonthlySignature.query.filter_by(user_id=selected_user_id, month_key=month).first()
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     page_width, page_height = A4
 
-    company_name = (company_profile.company_name or "Superpekes").strip()
     city_country = ", ".join([part for part in [company_profile.city, company_profile.country] if part])
-    company_line = " | ".join(
-        [
-            part
-            for part in [
-                f"CIF: {company_profile.tax_id}" if company_profile.tax_id else "",
-                company_profile.fiscal_address or "",
-                city_country,
-                f"Tel: {company_profile.phone}" if company_profile.phone else "",
-            ]
-            if part
-        ]
-    )
 
     if selected_user:
         full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
@@ -2053,9 +2189,6 @@ def report_pdf():
         rows.append(["", "", "", "", "", "", "", []])
 
     def draw_header_block() -> float:
-
-        top = page_height - 24
-
         logo_path = os.path.join(app.static_folder, "img", "Logo_parte de tiempo.png")
         if os.path.exists(logo_path):
             # Posicionar el logo arriba a la izquierda, autoajustable en alto
@@ -2069,9 +2202,8 @@ def report_pdf():
             x = 24
             y = page_height - new_h - 18
             pdf.drawImage(logo_path, x, y, width=new_w, height=new_h, preserveAspectRatio=True, mask="auto")
-            band_y = y - 20
         else:
-            band_y = page_height - 110
+            y = page_height - 92
 
         # Mostrar datos de cabecera justo debajo del logo
         left_x = 24
@@ -2217,6 +2349,37 @@ def report_pdf():
     pdf.setFillGray(0.25)
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawString(x_origin, signature_line_y + 6, "Firma")
+    pdf.setFont("Helvetica", 8)
+    if signature:
+        signed_at_text = signature.signed_at.strftime("%d/%m/%Y %H:%M") if signature.signed_at else "-"
+        pdf.drawString(x_origin + 42, signature_line_y + 6, f"Firmado por {signature.signed_name} el {signed_at_text}")
+
+        # If a drawn digital signature exists, print it above the signature line.
+        signature_data_url = (signature.signature_data_url or "").strip()
+        data_prefix = "data:image/png;base64,"
+        if signature_data_url.startswith(data_prefix):
+            try:
+                signature_bytes = base64.b64decode(signature_data_url[len(data_prefix):], validate=True)
+                signature_image = ImageReader(io.BytesIO(signature_bytes))
+                sign_img_w = 170
+                sign_img_h = 44
+                sign_img_x = x_origin + 4
+                sign_img_y = signature_line_y + 2
+                pdf.drawImage(
+                    signature_image,
+                    sign_img_x,
+                    sign_img_y,
+                    width=sign_img_w,
+                    height=sign_img_h,
+                    preserveAspectRatio=True,
+                    mask="auto",
+                )
+            except Exception:
+                pass
+    elif include_all:
+        pdf.drawString(x_origin + 42, signature_line_y + 6, "Firma no disponible en informe de todos los empleados")
+    else:
+        pdf.drawString(x_origin + 42, signature_line_y + 6, "Pendiente de firma del empleado")
 
     totals_x = x_origin + sum(col_widths) - totals_width
     totals_y = footer_anchor_y + 2
@@ -2510,6 +2673,12 @@ def api_entries_create():
 
     db.session.add(candidate)
     db.session.flush()
+    invalidate_month_signature(
+        user_id=target_user_id,
+        work_date=normalized["work_date"],
+        actor_user_id=api_user.id,
+        reason="Alta de registro desde API en mes firmado",
+    )
     create_audit_log(
         actor_user_id=api_user.id,
         target_user_id=target_user_id,
@@ -2579,6 +2748,12 @@ def api_entry_update(entry_id):
     entry.location_latitude = normalized["location_latitude"]
     entry.location_longitude = normalized["location_longitude"]
     entry.overtime_validated = False
+    invalidate_month_signature(
+        user_id=entry.user_id,
+        work_date=entry.work_date,
+        actor_user_id=api_user.id,
+        reason="Modificación de registro desde API en mes firmado",
+    )
     create_audit_log(
         actor_user_id=api_user.id,
         target_user_id=entry.user_id,
@@ -2604,6 +2779,12 @@ def api_entry_validate(entry_id):
         return jsonify({"error": "Registro no encontrado"}), 404
 
     entry.overtime_validated = True
+    invalidate_month_signature(
+        user_id=entry.user_id,
+        work_date=entry.work_date,
+        actor_user_id=request.api_user.id,
+        reason="Cambio de validación desde API en mes firmado",
+    )
     create_audit_log(
         actor_user_id=request.api_user.id,
         target_user_id=entry.user_id,
@@ -2683,35 +2864,6 @@ def api_report_pdf():
     return report_pdf()
 
 
-# ===== RECUPERACIÓN DE CONTRASEÑA PARA ADMINISTRADORES =====
-
-    pass
-
-
-
-    return render_template("admin_login.html", mode="forgot-request")
-
-
-    # Si se requiere funcionalidad de recuperación, debe implementarse de otra forma o restaurar el modelo.
-    # Por ahora, solo mostramos un error genérico.
-    flash("Funcionalidad de recuperación de contraseña deshabilitada. Contacta al administrador.", "admin_forgot")
-    return render_template("admin_login.html", mode="forgot-verify", username=username)
-    db.session.commit()
-
-    create_audit_log(
-        actor_user_id=user.id,
-        target_user_id=user.id,
-        entity_type="user",
-        entity_id=user.id,
-        action="password_reset",
-        reason="Recuperación de contraseña admin con código",
-        details="Cambio de contraseña de administrador con código de verificación",
-    )
-
-    flash("Contraseña restablecida con éxito. Ya puedes iniciar sesión.", "admin_login")
-    return render_template("admin_login.html", mode="login")
-
-
 @app.route("/admin/enable_editable_day", methods=["POST"])
 @login_required
 @admin_required
@@ -2742,7 +2894,7 @@ def admin_enable_editable_day():
 
 with app.app_context():
     db.create_all()
-    pass  # Llamadas a migraciones eliminadas
+    ensure_monthly_signature_schema()
     ensure_default_admin()
 
 

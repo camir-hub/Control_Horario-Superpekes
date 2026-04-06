@@ -198,4 +198,19 @@ CREATE TABLE IF NOT EXISTS password_reset_codes (
 CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_id ON password_reset_codes(user_id);
 CREATE INDEX IF NOT EXISTS idx_password_reset_codes_code ON password_reset_codes(code);
 
+-- Firma mensual del empleado para cierre legal del parte horario.
+CREATE TABLE IF NOT EXISTS monthly_signatures (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    month_key VARCHAR(7) NOT NULL,
+    signed_name VARCHAR(180) NOT NULL DEFAULT '',
+    signature_data_url TEXT NULL,
+    signature_ip VARCHAR(64) NULL,
+    signature_user_agent VARCHAR(255) NULL,
+    signed_at TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_monthly_signatures_user_month UNIQUE (user_id, month_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_monthly_signatures_user_month ON monthly_signatures(user_id, month_key);
+
 COMMIT;

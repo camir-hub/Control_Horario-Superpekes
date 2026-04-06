@@ -259,6 +259,78 @@
 
         .total-row { font-weight: 700; font-size: 0.95rem; color: var(--ink); }
 
+        .flash-stack { display: grid; gap: 8px; }
+        .flash {
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #1e293b;
+        }
+
+        .flash.success { border-color: #86efac; background: #f0fdf4; color: #166534; }
+        .flash.error { border-color: #fca5a5; background: #fee2e2; color: #991b1b; }
+
+        .signature-box {
+            margin-top: 14px;
+            border: 1px dashed #94a3b8;
+            border-radius: 12px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .signature-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .signature-meta {
+            font-size: 0.84rem;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        .signature-image {
+            display: block;
+            max-width: 460px;
+            width: 100%;
+            height: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            margin-bottom: 10px;
+        }
+
+        .signature-pad-wrap {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            background: #fff;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+
+        .signature-pad {
+            width: 100%;
+            max-width: 460px;
+            height: 140px;
+            border: 1px dashed #94a3b8;
+            border-radius: 6px;
+            touch-action: none;
+            cursor: crosshair;
+            display: block;
+            background: #ffffff;
+        }
+
+        .signature-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
         .print-company-header {
             display: none;
             align-items: flex-start;
@@ -270,9 +342,6 @@
         }
 
         .logo-print-only { display: none; }
-        @media print {
-            .logo-print-only { display: block !important; margin-right: 24px; }
-        }
         .print-company-header .company-meta {
             font-size: 0.85rem;
             color: var(--ink);
@@ -300,7 +369,7 @@
             .table-wrap { overflow: visible; }
             table { table-layout: auto; width: 100%; max-width: 100%; }
             @page { size: A4 landscape; margin: 8mm; }
-                    .logo-print-only { display: block !important; margin-right: 24px; }
+            .logo-print-only { display: block !important; margin-right: 24px; }
             .print-company-header { display: flex; }
         }
 
@@ -324,9 +393,6 @@
                 <a href="{{ url_for('admin_company') }}">&#127970; Empresa</a>
                 <a class="active" href="{{ url_for('report') }}">&#128203; Informes</a>
                 <a href="{{ url_for('admin_validate_hours') }}">&#9989; Validar Horas</a>
-                        <div class="logo-print-only">
-                            <img src="{{ url_for('static', filename='img/Logo_parte de tiempo.png') }}" alt="Logo parte de tiempo" />
-                        </div>
                 <div class="sb-divider"></div>
                 <a class="exit" href="{{ url_for('logout') }}">&#128682; Salir</a>
             </nav>
@@ -334,7 +400,20 @@
         {% endif %}
 
         <main class="content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack no-print">
+                        {% for category, message in messages %}
+                            <div class="flash{% if category == 'success' %} success{% endif %}{% if category == 'error' %} error{% endif %}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
             <div class="print-company-header">
+                <div class="logo-print-only">
+                    <img src="{{ url_for('static', filename='img/Logo_parte de tiempo.png') }}" alt="Logo parte de tiempo" />
+                </div>
                 <div class="company-meta">
                     <strong>{{ company_profile.company_name or 'Superpekes' }}</strong>
                     {% if company_profile.tax_id %}<div>CIF: {{ company_profile.tax_id }}</div>{% endif %}
@@ -346,7 +425,6 @@
                     </div>
                     {% if company_profile.phone %}<div>Tel: {{ company_profile.phone }}</div>{% endif %}
                 </div>
-
             </div>
 
             <div class="page-header">
@@ -430,8 +508,169 @@
                     </table>
                 </div>
                 <p class="total-row" style="margin-top: 14px;">Total de horas del mes: {{ total }}</p>
+
+                {% if not include_all and signature_info %}
+                <div class="signature-box">
+                    <div class="signature-title">Firma del empleado</div>
+                    {% if signature %}
+                        <div class="signature-meta">
+                            Firmado por <strong>{{ signature.signed_name }}</strong>
+                            el {{ signature.signed_at.strftime('%d/%m/%Y %H:%M') if signature.signed_at else '-' }}.
+                        </div>
+                        {% if signature.signature_data_url %}
+                        <img class="signature-image" src="{{ signature.signature_data_url }}" alt="Firma digital del empleado">
+                        {% endif %}
+                    {% else %}
+                        <div class="signature-meta">
+                            Estado: pendiente de firma.
+                            {% if signature_info.pending_count > 0 %} Quedan {{ signature_info.pending_count }} día(s) pendiente(s) de validación.{% endif %}
+                        </div>
+                    {% endif %}
+
+                    {% if not current_user.is_admin %}
+                        {% if signature_info.can_sign %}
+                        <form method="POST" action="{{ url_for('report_sign') }}" class="no-print" data-signature-form>
+                            <input type="hidden" name="month" value="{{ month }}">
+                            <input type="hidden" name="signature_data" id="signature_data">
+                            <div class="signature-pad-wrap">
+                                <canvas id="signature_pad" class="signature-pad"></canvas>
+                                <div class="signature-actions">
+                                    <button type="button" class="btn-ghost" id="clear_signature">Limpiar firma</button>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn">Firmar informe mensual</button>
+                        </form>
+                        {% elif not signature %}
+                        <div class="signature-meta">La firma se habilita cuando el administrador haya validado todos los días del mes.</div>
+                        {% endif %}
+                    {% elif not signature %}
+                    <div class="signature-meta">La firma solo la puede realizar el propio empleado desde su usuario.</div>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </main>
     </div>
+    <script>
+        (function () {
+            const form = document.querySelector("[data-signature-form]");
+            if (!form) return;
+
+            const canvas = document.getElementById("signature_pad");
+            const hidden = document.getElementById("signature_data");
+            const clearBtn = document.getElementById("clear_signature");
+            const ctx = canvas.getContext("2d");
+            let drawing = false;
+            let hasStroke = false;
+
+            function startDraw(x, y) {
+                drawing = true;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                hasStroke = true;
+            }
+
+            function drawTo(x, y) {
+                if (!drawing) return;
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+
+            function endDraw() {
+                drawing = false;
+            }
+
+            function resizeCanvas() {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                const width = canvas.clientWidth;
+                const height = canvas.clientHeight;
+                canvas.width = Math.floor(width * ratio);
+                canvas.height = Math.floor(height * ratio);
+                ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+                ctx.lineWidth = 2;
+                ctx.lineCap = "round";
+                ctx.lineJoin = "round";
+                ctx.strokeStyle = "#0f172a";
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                hasStroke = false;
+            }
+
+            function pointFromEvent(event) {
+                const rect = canvas.getBoundingClientRect();
+                return {
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top,
+                };
+            }
+
+            canvas.addEventListener("pointerdown", function (event) {
+                const p = pointFromEvent(event);
+                startDraw(p.x, p.y);
+            });
+
+            canvas.addEventListener("pointermove", function (event) {
+                const p = pointFromEvent(event);
+                drawTo(p.x, p.y);
+            });
+
+            ["pointerup", "pointerleave", "pointercancel"].forEach(function (name) {
+                canvas.addEventListener(name, endDraw);
+            });
+
+            // Fallback for browsers with partial pointer-event support.
+            canvas.addEventListener("mousedown", function (event) {
+                const p = pointFromEvent(event);
+                startDraw(p.x, p.y);
+            });
+            canvas.addEventListener("mousemove", function (event) {
+                const p = pointFromEvent(event);
+                drawTo(p.x, p.y);
+            });
+            ["mouseup", "mouseleave"].forEach(function (name) {
+                canvas.addEventListener(name, endDraw);
+            });
+
+            canvas.addEventListener("touchstart", function (event) {
+                event.preventDefault();
+                const t = event.changedTouches[0];
+                if (!t) return;
+                const rect = canvas.getBoundingClientRect();
+                startDraw(t.clientX - rect.left, t.clientY - rect.top);
+            }, { passive: false });
+
+            canvas.addEventListener("touchmove", function (event) {
+                event.preventDefault();
+                const t = event.changedTouches[0];
+                if (!t) return;
+                const rect = canvas.getBoundingClientRect();
+                drawTo(t.clientX - rect.left, t.clientY - rect.top);
+            }, { passive: false });
+
+            ["touchend", "touchcancel"].forEach(function (name) {
+                canvas.addEventListener(name, function (event) {
+                    event.preventDefault();
+                    endDraw();
+                }, { passive: false });
+            });
+
+            clearBtn.addEventListener("click", function () {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                hasStroke = false;
+                hidden.value = "";
+            });
+
+            form.addEventListener("submit", function (event) {
+                if (!hasStroke) {
+                    event.preventDefault();
+                    alert("Debes dibujar tu firma antes de enviar.");
+                    return;
+                }
+                hidden.value = canvas.toDataURL("image/png");
+            });
+
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        })();
+    </script>
 </body>
 </html>
