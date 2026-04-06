@@ -328,6 +328,7 @@
 			}
 		}
 	</style>
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
 	<div class="layout">
@@ -380,7 +381,7 @@
 			<div class="panel">
 				{% if entries %}
 				<div class="table-wrap">
-					<table>
+					<table class="table-mobile-cards">
 						<thead>
 							<tr>
 								<th><span class="th-bot">Fecha</span></th>
@@ -398,15 +399,15 @@
 						<tbody>
 							{% for entry in entries %}
 							<tr>
-								<td class="col-date">{{ entry.work_date.strftime('%d/%m/%Y') }}</td>
-								<td class="col-employee">{{ ((entry.user.first_name or '') ~ ' ' ~ (entry.user.last_name or ''))|trim or entry.user.username }}</td>
-								<td class="mono col-time">{{ entry.check_in.strftime('%H:%M') }}</td>
-								<td class="mono col-time">{{ entry.check_out.strftime('%H:%M') }}</td>
-								<td class="mono col-hours">{{ worked_hours(entry)|round(2) }}</td>
-								<td class="mono col-hours">{{ meal_hours(entry)|round(2) }}</td>
-								<td class="mono col-hours">{{ pause_hours(entry)|round(2) }}</td>
-								<td class="mono col-hours">{{ overtime_hours(entry)|round(2) }}</td>
-								<td class="col-status {% if entry.overtime_validated %}is-validated{% endif %}">
+								<td class="col-date" data-label="Fecha">{{ entry.work_date.strftime('%d/%m/%Y') }}</td>
+								<td class="col-employee" data-label="Empleado">{{ ((entry.user.first_name or '') ~ ' ' ~ (entry.user.last_name or ''))|trim or entry.user.username }}</td>
+								<td class="mono col-time" data-label="Entrada">{{ entry.check_in.strftime('%H:%M') }}</td>
+								<td class="mono col-time" data-label="Salida">{{ entry.check_out.strftime('%H:%M') }}</td>
+								<td class="mono col-hours" data-label="Horas efectivas">{{ worked_hours(entry)|round(2) }}</td>
+								<td class="mono col-hours" data-label="Horas comida">{{ meal_hours(entry)|round(2) }}</td>
+								<td class="mono col-hours" data-label="Horas pausa">{{ pause_hours(entry)|round(2) }}</td>
+								<td class="mono col-hours" data-label="Horas extra">{{ overtime_hours(entry)|round(2) }}</td>
+								<td class="col-status {% if entry.overtime_validated %}is-validated{% endif %}" data-label="Estado">
 									<div class="status-cell" id="status-{{ entry.id }}">
 										{% if entry.overtime_validated %}
 											<span class="state-validated">Validado</span>
@@ -415,7 +416,7 @@
 										{% endif %}
 									</div>
 								</td>
-								<td class="reason-cell">{{ change_reasons.get(entry.id, '-') }}</td>
+								<td class="reason-cell" data-label="Motivos del cambio">{{ change_reasons.get(entry.id, '-') }}</td>
 							</tr>
 							{% endfor %}
 						</tbody>

@@ -309,6 +309,7 @@
             .cell-hours { font-size: 0.62rem; }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
 <main>
@@ -433,7 +434,7 @@
                 <h3>Historial de horas</h3>
                 <p class="history-subtitle">Consulta tus jornadas del mes.</p>
                 <div class="history-table-wrap">
-                    <table class="history-table">
+                    <table class="history-table table-mobile-cards">
                         <thead>
                             <tr>
                                 <th>Fecha</th>
@@ -448,12 +449,12 @@
                             {% for item in entries %}
                                 {% if item.work_date.month == month_start.month and item.work_date.year == month_start.year %}
                                 <tr>
-                                    <td>{{ item.work_date.strftime('%d/%m/%Y') }}</td>
-                                    <td>{{ '%.2f'|format(worked_hours(item) if worked_hours(item) else 0) }} h</td>
-                                    <td>{{ '%.2f'|format(meal_hours(item) if meal_hours(item) else 0) }} h</td>
-                                    <td>{{ '%.2f'|format(pause_hours(item) if pause_hours(item) else 0) }} h</td>
-                                    <td>{{ '%.2f'|format(overtime_hours(item) if overtime_hours(item) else 0) }} h</td>
-                                    <td>
+                                    <td data-label="Fecha">{{ item.work_date.strftime('%d/%m/%Y') }}</td>
+                                    <td data-label="Horas trabajadas">{{ '%.2f'|format(worked_hours(item) if worked_hours(item) else 0) }} h</td>
+                                    <td data-label="H. comida">{{ '%.2f'|format(meal_hours(item) if meal_hours(item) else 0) }} h</td>
+                                    <td data-label="H. pausa">{{ '%.2f'|format(pause_hours(item) if pause_hours(item) else 0) }} h</td>
+                                    <td data-label="H. extras">{{ '%.2f'|format(overtime_hours(item) if overtime_hours(item) else 0) }} h</td>
+                                    <td data-label="Estado">
                                         {% if item.overtime_validated %}
                                             <span class="status-pill validated">Validado</span>
                                         {% else %}

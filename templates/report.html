@@ -192,7 +192,15 @@
             background: #fff;
         }
 
-        .table-wrap { overflow-x: hidden; width: 100%; }
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+
+        .report-table {
+            min-width: 1100px;
+        }
 
         table {
             width: 100%;
@@ -381,6 +389,7 @@
             .content { padding: 16px; }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
     <div class="layout {% if not current_user.is_admin %}no-sidebar{% endif %}">
@@ -464,7 +473,7 @@
 
             <div class="panel">
                 <div class="table-wrap">
-                    <table>
+                    <table class="report-table">
                         <thead>
                             <tr>
                                 <th><span class="th-bot">Fecha</span></th>
@@ -484,24 +493,24 @@
                         <tbody>
                             {% for item in entries %}
                             <tr>
-                                <td>{{ item.work_date }}</td>
+                                <td data-label="Fecha">{{ item.work_date }}</td>
                                 {% if current_user.is_admin %}
-                                <td>{{ ((item.user.first_name or '') ~ ' ' ~ (item.user.last_name or ''))|trim or item.user.username }}</td>
+                                <td data-label="Empleado">{{ ((item.user.first_name or '') ~ ' ' ~ (item.user.last_name or ''))|trim or item.user.username }}</td>
                                 {% endif %}
-                                <td>{{ item.check_in }}</td>
-                                <td>{{ item.check_out }}</td>
-                                <td>{{ '%.2f'|format(worked_hours(item)) }}</td>
-                                <td>{{ '%.2f'|format(meal_hours(item)) }}</td>
-                                <td>{{ '%.2f'|format(pause_hours(item)) }}</td>
-                                <td>{{ '%.2f'|format(overtime_hours(item)) }}</td>
-                                <td>
+                                <td data-label="Entrada">{{ item.check_in }}</td>
+                                <td data-label="Salida">{{ item.check_out }}</td>
+                                <td data-label="Horas ordinarias">{{ '%.2f'|format(worked_hours(item)) }}</td>
+                                <td data-label="Horas comida">{{ '%.2f'|format(meal_hours(item)) }}</td>
+                                <td data-label="Horas pausa">{{ '%.2f'|format(pause_hours(item)) }}</td>
+                                <td data-label="Horas extra">{{ '%.2f'|format(overtime_hours(item)) }}</td>
+                                <td data-label="Estado">
                                     {% if item.overtime_validated %}
                                         <span class="pill pill-validated">Validado</span>
                                     {% else %}
                                         <span class="pill pill-pending">Pendiente</span>
                                     {% endif %}
                                 </td>
-                                <td class="reason-cell">{{ change_reasons.get(item.id, '-') }}</td>
+                                <td class="reason-cell" data-label="Motivos del cambio">{{ change_reasons.get(item.id, '-') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>

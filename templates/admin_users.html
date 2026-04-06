@@ -237,6 +237,7 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
 <body>
     <div class="layout">
@@ -321,7 +322,7 @@
             <div class="panel">
                 <h2>Empleados registrados</h2>
                 <div class="table-wrap">
-                    <table>
+                    <table class="table-mobile-cards">
                         <thead>
                             <tr>
                                 <th>Nombre</th>
@@ -343,18 +344,18 @@
                             {% set empleados = users | rejectattr('rol', 'equalto', 'admin') | list %}
                             {% for user in admins + empleados %}
                             <tr>
-                                <td>{{ user.first_name or '-' }}</td>
-                                <td>{{ user.last_name or '-' }}</td>
-                                <td>{{ user.tax_id or '-' }}</td>
-                                <td>{{ user.affiliation_number or '-' }}</td>
-                                <td>{{ user.address or '-' }}</td>
-                                <td>{{ user.postal_code or '-' }}</td>
-                                <td>{{ user.city or '-' }}</td>
-                                <td>{{ user.province or '-' }}</td>
-                                <td>{{ user.email or '-' }}</td>
-                                <td>{{ user.phone or '-' }}</td>
-                                <td>{{ user.rol|capitalize }}</td>
-                                <td>
+                                <td data-label="Nombre">{{ user.first_name or '-' }}</td>
+                                <td data-label="Apellidos">{{ user.last_name or '-' }}</td>
+                                <td data-label="CIF/NIF/DNI">{{ user.tax_id or '-' }}</td>
+                                <td data-label="Nº Afiliación">{{ user.affiliation_number or '-' }}</td>
+                                <td data-label="Dirección">{{ user.address or '-' }}</td>
+                                <td data-label="Código postal">{{ user.postal_code or '-' }}</td>
+                                <td data-label="Ciudad">{{ user.city or '-' }}</td>
+                                <td data-label="Provincia">{{ user.province or '-' }}</td>
+                                <td data-label="Correo">{{ user.email or '-' }}</td>
+                                <td data-label="Teléfono">{{ user.phone or '-' }}</td>
+                                <td data-label="Rol">{{ user.rol|capitalize }}</td>
+                                <td data-label="Acción">
                                     {% if user.rol != 'admin' %}
                                     <form method="post" action="{{ url_for('admin_enable_editable_day') }}" style="display:flex; align-items:center; gap:10px;">
                                         <input type="hidden" name="user_id" value="{{ user.id }}">

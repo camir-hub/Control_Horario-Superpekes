@@ -1,0 +1,186 @@
+/* Capa responsive global para escritorio, tablet y movil. */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+canvas,
+video {
+    max-width: 100%;
+    height: auto;
+}
+
+.table-wrap,
+.history-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+table,
+.history-table {
+    min-width: 720px;
+}
+
+@media (max-width: 1024px) {
+    .content {
+        padding: 18px !important;
+    }
+
+    .panel,
+    .card,
+    .form-card {
+        padding: 16px !important;
+    }
+
+    .metrics,
+    .section-cards,
+    .views {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .app-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .form-section {
+        position: static !important;
+        max-height: none !important;
+        border-left: 0 !important;
+        border-top: 1px solid var(--line, #e2e8f0) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .layout {
+        grid-template-columns: 1fr !important;
+    }
+
+    .sidebar {
+        position: static !important;
+        height: auto !important;
+    }
+
+    .sb-nav {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        padding: 10px !important;
+    }
+
+    .sb-nav a {
+        flex: 1 1 160px;
+        justify-content: center;
+    }
+
+    .content {
+        padding: 14px !important;
+    }
+
+    .filter-bar,
+    .actions,
+    .toggle-row,
+    .month-nav {
+        align-items: stretch !important;
+    }
+
+    .filter-bar > *,
+    .actions > *,
+    .toggle-row > * {
+        flex: 1 1 100%;
+    }
+
+    .month-nav > h2 {
+        order: -1;
+        width: 100%;
+    }
+
+    input,
+    select,
+    button,
+    .btn,
+    .btn-ghost,
+    .btn-filter,
+    .actions a {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 640px) {
+    table,
+    .history-table {
+        min-width: 600px;
+    }
+
+    .table-mobile-cards {
+        min-width: 0 !important;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .table-mobile-cards thead {
+        display: none;
+    }
+
+    .table-mobile-cards tbody,
+    .table-mobile-cards tr,
+    .table-mobile-cards td {
+        display: block;
+        width: 100%;
+    }
+
+    .table-mobile-cards tbody tr {
+        margin-bottom: 12px;
+        border: 1px solid var(--line, #e2e8f0);
+        border-radius: 12px;
+        padding: 8px 10px;
+        background: #fff;
+    }
+
+    .table-mobile-cards tbody td {
+        border: 0 !important;
+        border-bottom: 1px dashed var(--line, #e2e8f0) !important;
+        padding: 8px 4px !important;
+        text-align: left !important;
+        white-space: normal !important;
+    }
+
+    .table-mobile-cards tbody td:last-child {
+        border-bottom: 0 !important;
+    }
+
+    .table-mobile-cards tbody td::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 3px;
+        font-size: 0.73rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: var(--muted, #64748b);
+        text-transform: uppercase;
+    }
+
+    .table-mobile-cards .status-cell {
+        justify-content: flex-start !important;
+    }
+
+    .views,
+    .metrics,
+    .section-cards,
+    .row-2,
+    .time-row,
+    .detail-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .topbar {
+        padding: 12px 14px !important;
+    }
+
+    .cal-cell {
+        min-height: 48px !important;
+    }
+
+    .page-header h1 {
+        font-size: 1.25rem !important;
+    }
+}
