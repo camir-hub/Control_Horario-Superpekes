@@ -90,7 +90,12 @@ def admin_password_reset_request():
         # Enviar email
         msg = Message("Código de verificación para restablecer contraseña", recipients=[email])
         msg.body = f"Tu código de verificación es: {code}"
-        mail.send(msg)
+        try:
+            mail.send(msg)
+        except Exception:
+            app.logger.exception("No se pudo enviar el correo de recuperación al administrador")
+            flash("No se pudo enviar el código de verificación. Revisa la configuración de correo e inténtalo de nuevo.", "error")
+            return render_template("admin_password_reset_request.html")
         flash("Se ha enviado un código de verificación a tu correo electrónico.", "info")
         return redirect(url_for("admin_password_reset_verify"))
     return render_template("admin_password_reset_request.html")
@@ -723,14 +728,30 @@ def validate_entry_payload(payload):
 
 def ensure_default_admin():
     admin = User.query.filter_by(username="admin").first()
+    default_admin_email = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+    default_admin_password = os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")
+
     if admin is None:
         admin = User(
             username="admin",
-            password_hash=generate_password_hash(os.getenv("DEFAULT_ADMIN_PASSWORD", "Admin123!")),
+            email=default_admin_email,
+            first_name="Administrador",
+            password_hash=generate_password_hash(default_admin_password),
             rol="admin",
             active=True,
         )
         db.session.add(admin)
+        db.session.commit()
+        return
+
+    updated = False
+    if not admin.email:
+        admin.email = default_admin_email
+        updated = True
+    if not admin.first_name:
+        admin.first_name = "Administrador"
+        updated = True
+    if updated:
         db.session.commit()
 
 

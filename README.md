@@ -43,13 +43,15 @@ pip install -r requirements.txt
 
 ## Configuracion PostgreSQL
 
-1. Crea base de datos en PostgreSQL, por ejemplo: `control_horario`.
+1. Crea base de datos en PostgreSQL, por ejemplo: control_horario.
 2. Abre pgAdmin 4 y ejecuta el script [schema_postgresql.sql](schema_postgresql.sql).
 3. Configura variables de entorno:
 
 ```powershell
 $env:DATABASE_URL = "postgresql+psycopg2://postgres:postgres@localhost:5432/control_horario"
 $env:SECRET_KEY = "cambia_esta_clave_por_otra_segura"
+$env:DEFAULT_ADMIN_PASSWORD = "Admin123!"
+$env:DEFAULT_ADMIN_EMAIL = "admin@example.com"
 ```
 
 ## Ejecucion
@@ -60,10 +62,22 @@ flask --app app run
 
 Credenciales iniciales por defecto:
 
-- Usuario: `admin`
-- Password: `Admin123!`
+- Usuario: admin
+- Password: la definida en DEFAULT_ADMIN_PASSWORD
 
 Recomendado: cambiarla inmediatamente despues del primer acceso.
+
+## Variables importantes para Render
+
+Define tambien estas variables si quieres usar recuperación por correo:
+
+- MAIL_SERVER
+- MAIL_PORT
+- MAIL_USE_TLS
+- MAIL_USERNAME
+- MAIL_PASSWORD
+- MAIL_DEFAULT_SENDER
+- DEFAULT_ADMIN_EMAIL
 
 ## API REST (resumen)
 

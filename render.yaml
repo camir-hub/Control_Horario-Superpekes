@@ -1,5 +1,5 @@
 services:
-  # Configuración de tu aplicación Flask
+  # Configuración de la aplicación Flask
   - type: web
     name: control-horario-superpekes
     env: python
@@ -10,8 +10,26 @@ services:
         fromDatabase:
           name: db-superpekes
           property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        sync: false
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@example.com
 
 # Configuración de la base de datos PostgreSQL
 databases:
   - name: db-superpekes
-    plan: free # Nivel gratuitoco
+    plan: free
