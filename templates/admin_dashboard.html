@@ -88,6 +88,8 @@
         .sb-nav a.exit {
             margin-top: auto;
             color: #f87171;
+            justify-content: flex-start;
+            text-align: left;
         }
 
         .sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
@@ -309,7 +311,7 @@
             .layout  { grid-template-columns: 1fr; }
             .sidebar { position: static; height: auto; }
             .sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
-            .sb-nav a.exit { margin-top: 0; }
+            .sb-nav a.exit { margin-top: 0; justify-content: flex-start; text-align: left; }
             .content { padding: 16px; }
             .metrics { grid-template-columns: repeat(2, 1fr); }
             .section-cards { grid-template-columns: 1fr; }

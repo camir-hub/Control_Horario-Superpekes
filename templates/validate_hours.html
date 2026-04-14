@@ -78,7 +78,7 @@
 
 		.sb-nav a:hover { background: rgba(255,255,255,0.08); color: #fff; }
 		.sb-nav a.active { background: var(--sb-accent); color: #fff; }
-		.sb-nav a.exit { margin-top: auto; color: #f87171; }
+		.sb-nav a.exit { margin-top: auto; color: #f87171; justify-content: flex-start; text-align: left; }
 		.sb-nav a.exit:hover { background: rgba(239,68,68,0.14); }
 
 		.sb-divider {
@@ -342,7 +342,7 @@
 			.layout  { grid-template-columns: 1fr; }
 			.sidebar { position: static; height: auto; }
 			.sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
-			.sb-nav a.exit { margin-top: 0; }
+			.sb-nav a.exit { margin-top: 0; justify-content: flex-start; text-align: left; }
 			.content { padding: 16px; }
 			.table-wrap { overflow-x: hidden; }
 			th, td {
