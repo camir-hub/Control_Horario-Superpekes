@@ -132,7 +132,8 @@ table,
 
     .sb-nav a {
         flex: 1 1 160px;
-        justify-content: center;
+        justify-content: flex-start;
+        text-align: left;
     }
 
     .content {
