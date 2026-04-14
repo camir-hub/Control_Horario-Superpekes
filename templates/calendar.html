@@ -261,9 +261,21 @@
             color: var(--ink);
             background: #f8fafc;
             -webkit-appearance: none;
+            -moz-appearance: none;
             appearance: none;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            box-shadow: none;
             transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+        }
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            opacity: 0.75;
+        }
+        input[type="time"]::-webkit-datetime-edit,
+        input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+        input[type="time"]::-webkit-datetime-edit-hour-field,
+        input[type="time"]::-webkit-datetime-edit-minute-field {
+            padding: 0;
+            background: transparent;
+            color: var(--ink);
         }
         input:focus, select:focus, textarea:focus {
             outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
