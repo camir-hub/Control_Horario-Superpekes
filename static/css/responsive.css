@@ -130,10 +130,15 @@ table,
         padding: 10px !important;
     }
 
-    .sb-nav a {
+    .sb-nav a,
+    .sb-nav a.exit {
         flex: 1 1 160px;
-        justify-content: flex-start;
-        text-align: left;
+        justify-content: flex-start !important;
+        text-align: left !important;
+    }
+
+    .sb-nav a.exit {
+        margin-top: 0 !important;
     }
 
     .content {
