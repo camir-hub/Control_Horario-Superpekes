@@ -113,17 +113,18 @@ table,
         margin: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
+        padding: 10px !important;
     }
 
     .form-section .time-row {
         grid-template-columns: 1fr !important;
-        gap: 10px !important;
+        gap: 8px !important;
     }
 
     .form-section .toggle-row {
         display: grid !important;
         grid-template-columns: 1fr !important;
-        gap: 10px !important;
+        gap: 8px !important;
         align-items: stretch !important;
         width: 100% !important;
     }

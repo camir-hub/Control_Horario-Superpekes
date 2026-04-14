@@ -197,18 +197,18 @@
             overflow-y: auto; max-height: calc(100vh - 56px);
             position: sticky; top: 56px;
         }
-        .form-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
-        .form-card h3 { font-size: 1rem; margin-bottom: 10px; }
-        .panel-day-label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 12px; text-transform: capitalize; }
+        .form-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; }
+        .form-card h3 { font-size: 1rem; margin-bottom: 6px; }
+        .panel-day-label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 8px; text-transform: capitalize; }
         .form-group {
             display: grid;
-            gap: clamp(8px, 1.8vw, 12px);
+            gap: 8px;
             width: 100%;
         }
         .time-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
-            gap: clamp(8px, 1.8vw, 12px);
+            gap: 8px;
             width: 100%;
         }
         .time-row > div {
@@ -218,9 +218,9 @@
         .toggle-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
-            gap: clamp(8px, 1.8vw, 12px);
+            gap: 8px;
             align-items: stretch;
-            margin-top: 2px;
+            margin-top: 0;
             width: 100%;
         }
         .toggle-item {
@@ -348,6 +348,9 @@
                 position: static;
                 max-height: none;
                 padding: 0;
+            }
+            .form-card {
+                padding: 10px;
             }
         }
         @media (max-width: 560px) {
