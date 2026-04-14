@@ -203,7 +203,7 @@
 		tr:hover td { background: #edf1f6; }
 		td.col-hours,
 		td.col-status {
-			text-align: center;
+			text-align: left;
 		}
 		td.col-date,
 		td.col-time,
@@ -235,7 +235,7 @@
 		.validation-table .col-hours {
 			width: 86px !important;
 			max-width: 86px;
-			text-align: center;
+			text-align: left;
 			white-space: nowrap;
 		}
 
@@ -257,6 +257,9 @@
 		.validation-table .col-employee {
 			min-width: 240px;
 			width: auto;
+			white-space: normal;
+			overflow-wrap: anywhere;
+			word-break: break-word;
 		}
 
 		.mono {

@@ -245,7 +245,7 @@
         .validation-table .col-hours {
             width: 86px !important;
             max-width: 86px;
-            text-align: center;
+            text-align: left;
             white-space: nowrap;
         }
 
@@ -525,7 +525,7 @@
                                 {% endif %}
                                 <th class="col-time"><span class="th-bot">Entrada</span></th>
                                 <th class="col-time"><span class="th-bot">Salida</span></th>
-                                <th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">ordinarias</span></th>
+                                <th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">efectivas</span></th>
                                 <th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">comida</span></th>
                                 <th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">pausa</span></th>
                                 <th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">extra</span></th>
@@ -542,7 +542,7 @@
                                 {% endif %}
                                 <td class="col-time" data-label="Entrada">{{ item.check_in }}</td>
                                 <td class="col-time" data-label="Salida">{{ item.check_out }}</td>
-                                <td class="col-hours" data-label="Horas ordinarias">{{ '%.2f'|format(worked_hours(item)) }}</td>
+                                <td class="col-hours" data-label="Horas efectivas">{{ '%.2f'|format(worked_hours(item)) }}</td>
                                 <td class="col-hours" data-label="Horas comida">{{ '%.2f'|format(meal_hours(item)) }}</td>
                                 <td class="col-hours" data-label="Horas pausa">{{ '%.2f'|format(pause_hours(item)) }}</td>
                                 <td class="col-hours" data-label="Horas extra">{{ '%.2f'|format(overtime_hours(item)) }}</td>
