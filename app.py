@@ -63,6 +63,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
     "sqlite:///horarios.db",
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 # Configuracion de Flask-Mail
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.example.com")

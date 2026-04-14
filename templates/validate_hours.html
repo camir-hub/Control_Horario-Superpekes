@@ -217,24 +217,46 @@
 			overflow-wrap: anywhere;
 		}
 
-		.validation-table th:nth-child(1),
-		.validation-table td.col-date {
-			width: 110px;
+		.report-table .col-date,
+		.validation-table .col-date {
+			width: 110px !important;
+			max-width: 110px;
+			white-space: nowrap;
 		}
 
-		.validation-table th:nth-child(2),
-		.validation-table td.col-employee {
-			width: 240px;
+		.report-table .col-time,
+		.validation-table .col-time {
+			width: 78px !important;
+			max-width: 78px;
+			white-space: nowrap;
 		}
 
-		.validation-table th:nth-last-child(2),
-		.validation-table td.col-status {
-			width: 120px;
+		.report-table .col-hours,
+		.validation-table .col-hours {
+			width: 86px !important;
+			max-width: 86px;
+			text-align: center;
+			white-space: nowrap;
 		}
 
-		.validation-table th:last-child,
-		.validation-table td.reason-cell {
-			width: 220px;
+		.report-table .col-status,
+		.validation-table .col-status {
+			width: 100px !important;
+			max-width: 100px;
+			text-align: center;
+			white-space: nowrap;
+		}
+
+		.report-table .col-reason,
+		.validation-table .col-reason {
+			width: 280px !important;
+			min-width: 280px;
+		}
+
+		.report-table .col-employee,
+		.validation-table .col-employee {
+			min-width: 240px;
+			width: auto;
 		}
 
 		.mono {
@@ -404,16 +426,16 @@
 					<table class="validation-table table-mobile-cards">
 						<thead>
 							<tr>
-								<th><span class="th-bot">Fecha</span></th>
-								<th><span class="th-bot">Empleado</span></th>
-								<th><span class="th-bot">Entrada</span></th>
-								<th><span class="th-bot">Salida</span></th>
-								<th><span class="th-top">Horas</span><span class="th-bot">efectivas</span></th>
-								<th><span class="th-top">Horas</span><span class="th-bot">comida</span></th>
-								<th><span class="th-top">Horas</span><span class="th-bot">pausa</span></th>
-								<th><span class="th-top">Horas</span><span class="th-bot">extra</span></th>
-								<th><span class="th-bot">Estado</span></th>
-								<th><span class="th-top">Motivos</span><span class="th-bot">del cambio</span></th>
+								<th class="col-date"><span class="th-bot">Fecha</span></th>
+								<th class="col-employee"><span class="th-bot">Empleado</span></th>
+								<th class="col-time"><span class="th-bot">Entrada</span></th>
+								<th class="col-time"><span class="th-bot">Salida</span></th>
+								<th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">efectivas</span></th>
+								<th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">comida</span></th>
+								<th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">pausa</span></th>
+								<th class="col-hours"><span class="th-top">Horas</span><span class="th-bot">extra</span></th>
+								<th class="col-status"><span class="th-bot">Estado</span></th>
+								<th class="col-reason"><span class="th-top">Motivos</span><span class="th-bot">del cambio</span></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -436,7 +458,7 @@
 										{% endif %}
 									</div>
 								</td>
-								<td class="reason-cell" data-label="Motivos del cambio">{{ change_reasons.get(entry.id, '-') }}</td>
+								<td class="reason-cell col-reason" data-label="Motivos del cambio">{{ change_reasons.get(entry.id, '-') }}</td>
 							</tr>
 							{% endfor %}
 						</tbody>
