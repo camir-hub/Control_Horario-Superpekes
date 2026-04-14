@@ -158,6 +158,74 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function normalizeTimeValue(rawValue) {
+        const raw = String(rawValue || '').trim().replace('.', ':');
+        if (!raw) {
+            return '';
+        }
+
+        const digitsOnly = raw.replace(/\D/g, '');
+        if (/^\d{4}$/.test(digitsOnly)) {
+            const hh = digitsOnly.slice(0, 2);
+            const mm = digitsOnly.slice(2, 4);
+            if (Number(hh) < 24 && Number(mm) < 60) {
+                return `${hh}:${mm}`;
+            }
+        }
+
+        if (/^\d{3}$/.test(digitsOnly)) {
+            const hh = `0${digitsOnly.slice(0, 1)}`;
+            const mm = digitsOnly.slice(1, 3);
+            if (Number(hh) < 24 && Number(mm) < 60) {
+                return `${hh}:${mm}`;
+            }
+        }
+
+        const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+        if (match) {
+            const hh = String(Number(match[1]));
+            const mm = match[2];
+            if (Number(hh) < 24 && Number(mm) < 60) {
+                return `${hh.padStart(2, '0')}:${mm}`;
+            }
+        }
+
+        return raw;
+    }
+
+    function bindTimeInputHelpers() {
+        const inputs = document.querySelectorAll('.time-input');
+        const datalist = document.getElementById('time-options');
+
+        if (datalist && !datalist.children.length) {
+            for (let hour = 0; hour < 24; hour += 1) {
+                for (let minute = 0; minute < 60; minute += 15) {
+                    const option = document.createElement('option');
+                    option.value = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    datalist.appendChild(option);
+                }
+            }
+        }
+
+        inputs.forEach((input) => {
+            input.addEventListener('input', () => {
+                input.value = input.value.replace(/[^\d:]/g, '').slice(0, 5);
+                input.setCustomValidity('');
+            });
+
+            input.addEventListener('blur', () => {
+                const normalized = normalizeTimeValue(input.value);
+                input.value = normalized;
+
+                if (normalized && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(normalized)) {
+                    input.setCustomValidity('Usa el formato HH:MM, por ejemplo 08:30.');
+                } else {
+                    input.setCustomValidity('');
+                }
+            });
+        });
+    }
+
     function setLocationView(entry) {
         if (!vLocation) {
             return;
@@ -602,6 +670,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     bindGeolocatedSubmit(addForm, fLocationLatitude, fLocationLongitude, fGeoStatus);
     bindGeolocatedSubmit(editForm, eLocationLatitude, eLocationLongitude, eGeoStatus);
+    bindTimeInputHelpers();
 
     if (selectedDay) {
         updatePanel(selectedDay);

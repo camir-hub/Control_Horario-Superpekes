@@ -310,6 +310,7 @@
         input:focus, select:focus, textarea:focus {
             outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
         }
+        .time-input::placeholder { color: var(--muted); opacity: 0.9; }
         textarea { resize: vertical; }
         .btn {
             display: block; width: 100%; padding: 10px; border-radius: 10px; border: 0;
@@ -594,8 +595,8 @@
                         {% endif %}
                         <input type="hidden" name="work_date" id="form-work-date" value="{{ selected_day.isoformat() }}">
                         <div class="time-row">
-                            <div><label>Entrada</label><input type="time" name="check_in" id="form-check-in" required></div>
-                            <div><label>Salida</label><input type="time" name="check_out" id="form-check-out" required></div>
+                            <div><label>Entrada</label><input class="time-input" type="text" name="check_in" id="form-check-in" inputmode="numeric" autocomplete="off" placeholder="08:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options" required></div>
+                            <div><label>Salida</label><input class="time-input" type="text" name="check_out" id="form-check-out" inputmode="numeric" autocomplete="off" placeholder="14:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options" required></div>
                         </div>
                         <div class="toggle-row">
                             <label class="toggle-item" for="form-enable-meal">
@@ -613,16 +614,16 @@
                         </div>
                         <div class="toggle-hint">Marca para habilitar los campos de descanso.</div>
                         <div class="time-row optional-row" id="form-meal-row">
-                            <div><label>Inicio comida</label><input type="time" name="meal_start" id="form-meal-start"></div>
-                            <div><label>Fin comida</label><input type="time" name="meal_end" id="form-meal-end"></div>
+                            <div><label>Inicio comida</label><input class="time-input" type="text" name="meal_start" id="form-meal-start" inputmode="numeric" autocomplete="off" placeholder="14:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin comida</label><input class="time-input" type="text" name="meal_end" id="form-meal-end" inputmode="numeric" autocomplete="off" placeholder="14:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         <div class="time-row optional-row" id="form-pause-row">
-                            <div><label>Inicio pausa</label><input type="time" name="pause_start" id="form-pause-start"></div>
-                            <div><label>Fin pausa</label><input type="time" name="pause_end" id="form-pause-end"></div>
+                            <div><label>Inicio pausa</label><input class="time-input" type="text" name="pause_start" id="form-pause-start" inputmode="numeric" autocomplete="off" placeholder="11:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin pausa</label><input class="time-input" type="text" name="pause_end" id="form-pause-end" inputmode="numeric" autocomplete="off" placeholder="11:15" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         <div class="time-row optional-row" id="form-overtime-row">
-                            <div><label>Inicio extra</label><input type="time" name="overtime_start" id="form-overtime-start"></div>
-                            <div><label>Fin extra</label><input type="time" name="overtime_end" id="form-overtime-end"></div>
+                            <div><label>Inicio extra</label><input class="time-input" type="text" name="overtime_start" id="form-overtime-start" inputmode="numeric" autocomplete="off" placeholder="18:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin extra</label><input class="time-input" type="text" name="overtime_end" id="form-overtime-end" inputmode="numeric" autocomplete="off" placeholder="19:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         {% if current_user.is_admin %}
                         <div>
@@ -644,8 +645,8 @@
                 <div id="edit-form-wrap" style="display:none;">
                     <form id="edit-form" method="POST" action="" class="form-group">
                         <div class="time-row">
-                            <div><label>Entrada</label><input type="time" name="check_in" id="edit-check-in" required></div>
-                            <div><label>Salida</label><input type="time" name="check_out" id="edit-check-out" required></div>
+                            <div><label>Entrada</label><input class="time-input" type="text" name="check_in" id="edit-check-in" inputmode="numeric" autocomplete="off" placeholder="08:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options" required></div>
+                            <div><label>Salida</label><input class="time-input" type="text" name="check_out" id="edit-check-out" inputmode="numeric" autocomplete="off" placeholder="14:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options" required></div>
                         </div>
                         <div class="toggle-row">
                             <label class="toggle-item" for="edit-enable-meal">
@@ -663,16 +664,16 @@
                         </div>
                         <div class="toggle-hint">Marca para habilitar los campos de descanso.</div>
                         <div class="time-row optional-row" id="edit-meal-row">
-                            <div><label>Inicio comida</label><input type="time" name="meal_start" id="edit-meal-start"></div>
-                            <div><label>Fin comida</label><input type="time" name="meal_end" id="edit-meal-end"></div>
+                            <div><label>Inicio comida</label><input class="time-input" type="text" name="meal_start" id="edit-meal-start" inputmode="numeric" autocomplete="off" placeholder="14:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin comida</label><input class="time-input" type="text" name="meal_end" id="edit-meal-end" inputmode="numeric" autocomplete="off" placeholder="14:30" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         <div class="time-row optional-row" id="edit-pause-row">
-                            <div><label>Inicio pausa</label><input type="time" name="pause_start" id="edit-pause-start"></div>
-                            <div><label>Fin pausa</label><input type="time" name="pause_end" id="edit-pause-end"></div>
+                            <div><label>Inicio pausa</label><input class="time-input" type="text" name="pause_start" id="edit-pause-start" inputmode="numeric" autocomplete="off" placeholder="11:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin pausa</label><input class="time-input" type="text" name="pause_end" id="edit-pause-end" inputmode="numeric" autocomplete="off" placeholder="11:15" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         <div class="time-row optional-row" id="edit-overtime-row">
-                            <div><label>Inicio extra</label><input type="time" name="overtime_start" id="edit-overtime-start"></div>
-                            <div><label>Fin extra</label><input type="time" name="overtime_end" id="edit-overtime-end"></div>
+                            <div><label>Inicio extra</label><input class="time-input" type="text" name="overtime_start" id="edit-overtime-start" inputmode="numeric" autocomplete="off" placeholder="18:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
+                            <div><label>Fin extra</label><input class="time-input" type="text" name="overtime_end" id="edit-overtime-end" inputmode="numeric" autocomplete="off" placeholder="19:00" pattern="^([01]\d|2[0-3]):([0-5]\d)$" title="Usa formato HH:MM" list="time-options"></div>
                         </div>
                         <div>
                             <label>Motivo del cambio <span class="required-mark">*</span></label>
@@ -711,6 +712,8 @@
         </aside>
     </div>
 </main>
+
+<datalist id="time-options"></datalist>
 
 <script>
 const APP = {

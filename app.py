@@ -276,7 +276,20 @@ def parse_iso_date(value):
 
 
 def parse_hhmm(value):
-    return datetime.strptime(value, "%H:%M").time()
+    raw = (value or "").strip().replace(".", ":")
+    if not raw:
+        raise ValueError("Hora vacía")
+
+    compact = re.sub(r"\D", "", raw)
+    if re.fullmatch(r"\d{4}", compact):
+        raw = f"{compact[:2]}:{compact[2:]}"
+    elif re.fullmatch(r"\d{3}", compact):
+        raw = f"0{compact[0]}:{compact[1:]}"
+    elif re.fullmatch(r"\d{1,2}:\d{2}", raw):
+        hour, minute = raw.split(":")
+        raw = f"{int(hour):02d}:{minute}"
+
+    return datetime.strptime(raw, "%H:%M").time()
 
 def combine_dt(day_value, time_value):
     return datetime.combine(day_value, time_value)
