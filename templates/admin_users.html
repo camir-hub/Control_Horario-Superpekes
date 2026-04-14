@@ -185,41 +185,48 @@
             color: #fff;
         }
 
-        .table-wrap { overflow-x: visible; margin-top: 16px; width: 100%; }
+        .table-wrap { overflow-x: hidden; margin-top: 16px; width: 100%; }
 
-        table {
+        .admin-users-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 0;
+            min-width: 0 !important;
             table-layout: fixed;
         }
 
-        th, td {
+        .admin-users-table th,
+        .admin-users-table td {
             border: 1px solid var(--line);
-            padding: 9px 10px;
-            font-size: 0.87rem;
+            padding: 7px 8px;
+            font-size: 0.8rem;
             text-align: left;
             white-space: normal;
             overflow-wrap: anywhere;
             word-break: break-word;
             vertical-align: top;
+            line-height: 1.25;
         }
 
-        .table-mobile-cards td form {
+        .admin-users-table th {
+            background: #f8fafc;
+            font-weight: 700;
+            font-size: 0.74rem;
+        }
+
+        .admin-users-table td form {
             display: grid !important;
             grid-template-columns: 1fr;
-            gap: 8px;
+            gap: 6px;
             align-items: stretch !important;
             min-width: 0;
         }
 
-        .table-mobile-cards td form input[type="date"],
-        .table-mobile-cards td form .btn {
+        .admin-users-table td form input[type="date"],
+        .admin-users-table td form .btn {
             width: 100%;
             min-width: 0 !important;
+            font-size: 0.8rem;
         }
-
-        th { background: #f8fafc; font-weight: 700; }
 
         .badge {
             display: inline-block;
@@ -345,7 +352,7 @@
             <div class="panel">
                 <h2>Empleados registrados</h2>
                 <div class="table-wrap">
-                    <table class="table-mobile-cards">
+                    <table class="admin-users-table table-mobile-cards">
                         <thead>
                             <tr>
                                 <th>Nombre</th>
