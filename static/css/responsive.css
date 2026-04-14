@@ -105,7 +105,7 @@ table,
     .form-section {
         background: transparent !important;
         border-top: 0 !important;
-        padding: 0 !important;
+        padding: 10px 14px 0 !important;
         overflow-x: hidden !important;
     }
 
@@ -178,6 +178,10 @@ table,
 }
 
 @media (max-width: 1024px) and (orientation: landscape) {
+    .form-section {
+        padding: 10px 14px 0 !important;
+    }
+
     .form-section .time-row {
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     }
