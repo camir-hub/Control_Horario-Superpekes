@@ -432,6 +432,63 @@
             .sb-nav a.exit { margin-top: 0; }
             .content { padding: 16px; }
         }
+
+        @media (max-width: 900px) {
+            .table-wrap {
+                overflow-x: hidden;
+            }
+
+            .report-table {
+                min-width: 0 !important;
+                width: 100%;
+                table-layout: fixed;
+                border-collapse: separate;
+                border-spacing: 0;
+            }
+
+            .report-table thead {
+                display: none;
+            }
+
+            .report-table tbody,
+            .report-table tr,
+            .report-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .report-table tbody tr {
+                margin-bottom: 12px;
+                border: 1px solid var(--line);
+                border-radius: 12px;
+                padding: 8px 10px;
+                background: #fff;
+            }
+
+            .report-table tbody td {
+                border: 0 !important;
+                border-bottom: 1px dashed var(--line) !important;
+                padding: 8px 4px !important;
+                text-align: left !important;
+                white-space: normal !important;
+                max-width: none !important;
+            }
+
+            .report-table tbody td:last-child {
+                border-bottom: 0 !important;
+            }
+
+            .report-table tbody td::before {
+                content: attr(data-label);
+                display: block;
+                margin-bottom: 3px;
+                font-size: 0.73rem;
+                font-weight: 700;
+                letter-spacing: 0.01em;
+                color: var(--muted);
+                text-transform: uppercase;
+            }
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 </head>
@@ -517,7 +574,7 @@
 
             <div class="panel">
                 <div class="table-wrap">
-                    <table class="report-table">
+                    <table class="report-table table-mobile-cards">
                         <thead>
                             <tr>
                                 <th class="col-date"><span class="th-bot">Fecha</span></th>
