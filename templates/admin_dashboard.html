@@ -420,12 +420,12 @@
                         </table>
                     </div>
                     <!-- Paginación para últimos registros horarios -->
-                    <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:12px;">
-                        <form method="get" style="display:flex; gap:6px; align-items:center;">
+                    <div class="pager">
+                        <form method="get">
                             <input type="hidden" name="validados_page" value="{{ validados_page }}">
-                            <button type="submit" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
-                            <button type="submit" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
-                            <button type="submit" name="horarios_page" value="1" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}">◀ Anterior</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="1">⏮ Inicio</button>
                         </form>
                     </div>
                 </div>
@@ -477,12 +477,12 @@
                     </table>
                 </div>
                 <!-- Paginación para registros validados -->
-                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-top:12px;">
-                    <form method="get" style="display:flex; gap:6px; align-items:center;">
+                <div class="pager">
+                    <form method="get">
                         <input type="hidden" name="horarios_page" value="{{ horarios_page }}">
-                        <button type="submit" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Anterior</button>
-                        <button type="submit" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Siguiente</button>
-                        <button type="submit" name="validados_page" value="1" style="padding:4px 12px; border-radius:6px; border:1px solid #d1d5db; background:#f8fafc; cursor:pointer;">Ir al principio</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}">◀ Anterior</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="1">⏮ Inicio</button>
                     </form>
                 </div>
             </div>
