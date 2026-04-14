@@ -215,7 +215,7 @@
 
         .admin-users-table th:last-child,
         .admin-users-table td:last-child {
-            width: 150px;
+            width: 130px;
         }
 
         .admin-users-table td form {
@@ -234,14 +234,15 @@
         }
 
         .admin-users-table td form .btn {
-            min-height: 34px !important;
+            min-height: 30px !important;
             height: auto;
-            padding: 6px 8px !important;
-            line-height: 1.1;
+            padding: 5px 6px !important;
+            line-height: 1;
             white-space: nowrap;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            letter-spacing: -0.01em;
         }
 
         .badge {
@@ -406,7 +407,7 @@
                                     <form method="post" action="{{ url_for('admin_enable_editable_day') }}" style="display:grid; grid-template-columns:1fr; gap:8px; min-width:0;">
                                         <input type="hidden" name="user_id" value="{{ user.id }}">
                                         <input type="date" name="work_date" required style="padding:6px 8px; min-width:0; width:100%;">
-                                        <button type="submit" class="btn" style="padding:6px 8px; font-size:0.76rem; min-width:0; width:100%; white-space:nowrap;">Habilitar</button>
+                                        <button type="submit" class="btn" style="padding:5px 6px; font-size:0.68rem; min-width:0; width:100%; white-space:nowrap; line-height:1;">Habilitar</button>
                                     </form>
                                     {% endif %}
                                 </td>
