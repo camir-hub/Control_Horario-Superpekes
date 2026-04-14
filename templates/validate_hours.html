@@ -157,7 +157,7 @@
 		table {
 			width: 100%;
 			border-collapse: collapse;
-			table-layout: auto;
+			table-layout: fixed;
 			max-width: 100%;
 		}
 
@@ -215,6 +215,26 @@
 		td.reason-cell {
 			white-space: normal;
 			overflow-wrap: anywhere;
+		}
+
+		.validation-table th:nth-child(1),
+		.validation-table td.col-date {
+			width: 110px;
+		}
+
+		.validation-table th:nth-child(2),
+		.validation-table td.col-employee {
+			width: 240px;
+		}
+
+		.validation-table th:nth-last-child(2),
+		.validation-table td.col-status {
+			width: 120px;
+		}
+
+		.validation-table th:last-child,
+		.validation-table td.reason-cell {
+			width: 220px;
 		}
 
 		.mono {
@@ -381,7 +401,7 @@
 			<div class="panel">
 				{% if entries %}
 				<div class="table-wrap">
-					<table class="table-mobile-cards">
+					<table class="validation-table table-mobile-cards">
 						<thead>
 							<tr>
 								<th><span class="th-bot">Fecha</span></th>

@@ -200,6 +200,7 @@
 
         .report-table {
             min-width: 1100px;
+            table-layout: fixed;
         }
 
         table {
@@ -224,6 +225,25 @@
         td.reason-cell {
             white-space: pre-line;
             overflow-wrap: anywhere;
+            min-width: 220px;
+        }
+
+        .report-table th:first-child,
+        .report-table td:first-child {
+            width: 110px;
+            white-space: nowrap;
+        }
+
+        .report-table th:nth-last-child(2),
+        .report-table td:nth-last-child(2) {
+            width: 120px;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .report-table th:last-child,
+        .report-table td:last-child {
+            width: 240px;
         }
 
         th {
