@@ -163,26 +163,27 @@
 
 		th, td {
 			border: 1px solid var(--line);
-			padding: 6px 7px;
-			font-size: 0.76rem;
+			padding: 8px 10px;
+			font-size: clamp(0.74rem, 0.66rem + 0.2vw, 0.84rem);
 			text-align: left;
 			line-height: 1.2;
 			width: auto;
-			font-family: inherit;
-			vertical-align: top;
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+			vertical-align: middle;
+			min-height: 44px;
 		}
 
 		th {
 			background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
 			color: #0f172a;
 			border-color: #93c5fd;
-			font-weight: 700;
+			font-weight: normal;
 			white-space: normal;
 			word-break: break-word;
-			font-size: 0.69rem;
+			font-size: clamp(0.68rem, 0.62rem + 0.18vw, 0.82rem);
 			text-align: left;
 			vertical-align: middle;
-			font-family: inherit;
+			font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 		}
 
 		.th-top {
@@ -273,7 +274,6 @@
 			align-items: center;
 			justify-content: flex-start;
 			white-space: nowrap;
-			min-height: 30px;
 			max-width: 100%;
 		}
 
