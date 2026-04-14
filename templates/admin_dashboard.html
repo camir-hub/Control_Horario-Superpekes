@@ -266,6 +266,48 @@
             font-weight: 700;
         }
 
+        .pager {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pager form {
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pager-btn {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #0f172a !important;
+            -webkit-text-fill-color: #0f172a;
+            font: inherit;
+            font-size: 0.84rem;
+            font-weight: 700;
+            line-height: 1.2;
+            cursor: pointer;
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        .pager-btn:hover {
+            background: #eef2f7;
+        }
+
         /* responsive */
         @media (max-width: 1100px) {
             .layout  { grid-template-columns: 1fr; }
@@ -281,6 +323,14 @@
         @media (max-width: 720px) {
             .section-cards { grid-template-columns: 1fr; }
             .two-col { grid-template-columns: 1fr; }
+            .pager,
+            .pager form {
+                justify-content: flex-start;
+            }
+            .pager-btn {
+                font-size: 0.78rem;
+                padding: 8px 10px;
+            }
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
@@ -423,9 +473,9 @@
                     <div class="pager">
                         <form method="get">
                             <input type="hidden" name="validados_page" value="{{ validados_page }}">
-                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}">◀ Anterior</button>
-                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
-                            <button type="submit" class="pager-btn" name="horarios_page" value="1">⏮ Inicio</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}">&#8592; Anterior</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}">Siguiente &#8594;</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="1">&#8676; Inicio</button>
                         </form>
                     </div>
                 </div>
@@ -480,9 +530,9 @@
                 <div class="pager">
                     <form method="get">
                         <input type="hidden" name="horarios_page" value="{{ horarios_page }}">
-                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}">◀ Anterior</button>
-                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
-                        <button type="submit" class="pager-btn" name="validados_page" value="1">⏮ Inicio</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}">&#8592; Anterior</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}">Siguiente &#8594;</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="1">&#8676; Inicio</button>
                     </form>
                 </div>
             </div>

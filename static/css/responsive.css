@@ -11,6 +11,47 @@ video {
     height: auto;
 }
 
+.pager {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-top: 12px !important;
+    flex-wrap: wrap !important;
+}
+
+.pager form {
+    display: flex !important;
+    gap: 6px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: wrap !important;
+}
+
+.pager-btn {
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #d1d5db !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    -webkit-text-fill-color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 0.84rem !important;
+    line-height: 1.2 !important;
+    cursor: pointer !important;
+    min-height: 38px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    opacity: 1 !important;
+}
+
+.pager-btn:hover {
+    background: #eef2f7 !important;
+}
+
 .table-wrap,
 .history-table-wrap {
     overflow-x: auto !important;
@@ -66,6 +107,16 @@ table,
 @media (max-width: 768px) {
     .layout {
         grid-template-columns: 1fr !important;
+    }
+
+    .pager,
+    .pager form {
+        justify-content: flex-start !important;
+    }
+
+    .pager-btn {
+        font-size: 0.78rem !important;
+        padding: 8px 10px !important;
     }
 
     .sidebar {
