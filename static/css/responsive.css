@@ -13,7 +13,7 @@ video {
 
 .pager {
     display: flex !important;
-    justify-content: flex-start !important;
+    justify-content: flex-end !important;
     align-items: center !important;
     gap: 10px !important;
     margin-top: 12px !important;
@@ -24,7 +24,7 @@ video {
     display: flex !important;
     gap: 6px !important;
     align-items: center !important;
-    justify-content: flex-start !important;
+    justify-content: flex-end !important;
     flex-wrap: wrap !important;
 }
 
@@ -111,7 +111,7 @@ table,
 
     .pager,
     .pager form {
-        justify-content: flex-start !important;
+        justify-content: flex-end !important;
     }
 
     .pager-btn {
