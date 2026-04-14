@@ -113,18 +113,18 @@ table,
         margin: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
-        padding: 10px !important;
+        padding: 8px !important;
     }
 
     .form-section .time-row {
         grid-template-columns: 1fr !important;
-        gap: 8px !important;
+        gap: 6px !important;
     }
 
     .form-section .toggle-row {
         display: grid !important;
         grid-template-columns: 1fr !important;
-        gap: 8px !important;
+        gap: 6px !important;
         align-items: stretch !important;
         width: 100% !important;
     }
@@ -152,8 +152,8 @@ table,
     .form-section select,
     .form-section textarea,
     .form-section .toggle-item {
-        min-height: clamp(46px, 5vw, 50px) !important;
-        padding: 9px 10px !important;
+        min-height: 42px !important;
+        padding: 8px 10px !important;
         border: 1px solid var(--line, #e2e8f0) !important;
         border-radius: 10px !important;
         background: #f8fafc !important;
