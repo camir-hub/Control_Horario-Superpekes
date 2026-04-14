@@ -215,6 +215,9 @@
             min-width: 0;
             width: 100%;
         }
+        .optional-row {
+            display: none;
+        }
         .toggle-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
@@ -580,15 +583,15 @@
                             </label>
                         </div>
                         <div class="toggle-hint">Marca para habilitar los campos de descanso.</div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="form-meal-row">
                             <div><label>Inicio comida</label><input type="time" name="meal_start" id="form-meal-start"></div>
                             <div><label>Fin comida</label><input type="time" name="meal_end" id="form-meal-end"></div>
                         </div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="form-pause-row">
                             <div><label>Inicio pausa</label><input type="time" name="pause_start" id="form-pause-start"></div>
                             <div><label>Fin pausa</label><input type="time" name="pause_end" id="form-pause-end"></div>
                         </div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="form-overtime-row">
                             <div><label>Inicio extra</label><input type="time" name="overtime_start" id="form-overtime-start"></div>
                             <div><label>Fin extra</label><input type="time" name="overtime_end" id="form-overtime-end"></div>
                         </div>
@@ -630,15 +633,15 @@
                             </label>
                         </div>
                         <div class="toggle-hint">Marca para habilitar los campos de descanso.</div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="edit-meal-row">
                             <div><label>Inicio comida</label><input type="time" name="meal_start" id="edit-meal-start"></div>
                             <div><label>Fin comida</label><input type="time" name="meal_end" id="edit-meal-end"></div>
                         </div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="edit-pause-row">
                             <div><label>Inicio pausa</label><input type="time" name="pause_start" id="edit-pause-start"></div>
                             <div><label>Fin pausa</label><input type="time" name="pause_end" id="edit-pause-end"></div>
                         </div>
-                        <div class="time-row">
+                        <div class="time-row optional-row" id="edit-overtime-row">
                             <div><label>Inicio extra</label><input type="time" name="overtime_start" id="edit-overtime-start"></div>
                             <div><label>Fin extra</label><input type="time" name="overtime_end" id="edit-overtime-end"></div>
                         </div>

@@ -183,23 +183,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!mealStart || !mealEnd || !pauseStart || !pauseEnd || !overtimeStart || !overtimeEnd || !mealToggle || !pauseToggle || !overtimeToggle) {
             return;
         }
+
+        const mealRow = mealStart.closest('.time-row');
+        const pauseRow = pauseStart.closest('.time-row');
+        const overtimeRow = overtimeStart.closest('.time-row');
+
         const mealEnabled = mealToggle.checked;
         mealStart.disabled = !mealEnabled;
         mealEnd.disabled = !mealEnabled;
+        if (mealRow) {
+            mealRow.style.display = mealEnabled ? 'grid' : 'none';
+        }
         if (!mealEnabled) {
             mealStart.value = '';
             mealEnd.value = '';
         }
+
         const pauseEnabled = pauseToggle.checked;
         pauseStart.disabled = !pauseEnabled;
         pauseEnd.disabled = !pauseEnabled;
+        if (pauseRow) {
+            pauseRow.style.display = pauseEnabled ? 'grid' : 'none';
+        }
         if (!pauseEnabled) {
             pauseStart.value = '';
             pauseEnd.value = '';
         }
+
         const overtimeEnabled = overtimeToggle.checked;
         overtimeStart.disabled = !overtimeEnabled;
         overtimeEnd.disabled = !overtimeEnabled;
+        if (overtimeRow) {
+            overtimeRow.style.display = overtimeEnabled ? 'grid' : 'none';
+        }
         if (!overtimeEnabled) {
             overtimeStart.value = '';
             overtimeEnd.value = '';
