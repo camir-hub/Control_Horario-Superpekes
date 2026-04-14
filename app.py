@@ -64,6 +64,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
 # Configuracion de Flask-Mail
 app.config["MAIL_SERVER"] = os.getenv("MAIL_SERVER", "smtp.example.com")
@@ -74,6 +75,16 @@ app.config["MAIL_PASSWORD"] = os.getenv("MAIL_PASSWORD", "")
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER", "noreply@example.com")
 
 mail = Mail(app)
+app.jinja_env.auto_reload = True
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 # ===== RECUPERACION DE CONTRASENA PARA ADMINISTRADORES =====
 
 @app.route("/admin-password-reset-request", methods=["GET", "POST"])
