@@ -344,10 +344,62 @@
 			.sb-nav  { flex-direction: row; flex-wrap: wrap; padding: 10px; }
 			.sb-nav a.exit { margin-top: 0; }
 			.content { padding: 16px; }
-			.table-wrap { overflow-x: auto; }
-			table { min-width: 860px; }
+			.table-wrap { overflow-x: hidden; }
 			th, td {
 				padding: 6px 8px;
+			}
+		}
+
+		@media (max-width: 900px) {
+			.validation-table {
+				min-width: 0 !important;
+				width: 100%;
+				table-layout: fixed;
+				border-collapse: separate;
+				border-spacing: 0;
+			}
+
+			.validation-table thead {
+				display: none;
+			}
+
+			.validation-table tbody,
+			.validation-table tr,
+			.validation-table td {
+				display: block;
+				width: 100%;
+			}
+
+			.validation-table tbody tr {
+				margin-bottom: 12px;
+				border: 1px solid var(--line);
+				border-radius: 12px;
+				padding: 8px 10px;
+				background: #fff;
+			}
+
+			.validation-table tbody td {
+				border: 0 !important;
+				border-bottom: 1px dashed var(--line) !important;
+				padding: 8px 4px !important;
+				text-align: left !important;
+				white-space: normal !important;
+				max-width: none !important;
+			}
+
+			.validation-table tbody td:last-child {
+				border-bottom: 0 !important;
+			}
+
+			.validation-table tbody td::before {
+				content: attr(data-label);
+				display: block;
+				margin-bottom: 3px;
+				font-size: 0.73rem;
+				font-weight: 700;
+				letter-spacing: 0.01em;
+				color: var(--muted);
+				text-transform: uppercase;
 			}
 		}
 
