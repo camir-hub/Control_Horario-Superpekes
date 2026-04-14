@@ -198,8 +198,8 @@
             position: sticky; top: 56px;
         }
         .form-card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
-        .form-card h3 { font-size: 1rem; margin-bottom: 3px; }
-        .panel-day-label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 14px; text-transform: capitalize; }
+        .form-card h3 { font-size: 1rem; margin-bottom: 10px; }
+        .panel-day-label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 12px; text-transform: capitalize; }
         .form-group {
             display: grid;
             gap: clamp(8px, 1.8vw, 12px);
@@ -343,10 +343,11 @@
             .app-grid { grid-template-columns: 1fr; }
             .form-section {
                 border-left: none;
-                border-top: 1px solid var(--line);
+                border-top: 0;
+                background: transparent;
                 position: static;
                 max-height: none;
-                padding: clamp(12px, 2vw, 16px);
+                padding: 0;
             }
         }
         @media (max-width: 560px) {

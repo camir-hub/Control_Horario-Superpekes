@@ -103,8 +103,16 @@ table,
     }
 
     .form-section {
-        padding: clamp(12px, 2vw, 16px) !important;
+        background: transparent !important;
+        border-top: 0 !important;
+        padding: 0 !important;
         overflow-x: hidden !important;
+    }
+
+    .form-section .form-card {
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .form-section .time-row {
