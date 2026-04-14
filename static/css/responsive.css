@@ -141,14 +141,13 @@ table,
     }
 
     .form-section .time-row > div {
-        background: transparent !important;
-        border: 0 !important;
-        border-radius: 0 !important;
-        padding: 0 !important;
+        background: #f8fafc !important;
+        border: 1px solid var(--line, #e2e8f0) !important;
+        border-radius: 10px !important;
+        padding: 8px 10px !important;
         box-shadow: none !important;
     }
 
-    .form-section input[type="time"],
     .form-section select,
     .form-section textarea,
     .form-section .toggle-item {
@@ -157,6 +156,15 @@ table,
         border: 1px solid var(--line, #e2e8f0) !important;
         border-radius: 10px !important;
         background: #f8fafc !important;
+        box-shadow: none !important;
+    }
+
+    .form-section .time-row input[type="time"] {
+        min-height: auto !important;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
         box-shadow: none !important;
     }
 
