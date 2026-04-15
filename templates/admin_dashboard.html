@@ -471,9 +471,9 @@
                     <div class="pager">
                         <form method="get">
                             <input type="hidden" name="validados_page" value="{{ validados_page }}">
-                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}">◀ Anterior</button>
-                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
-                            <button type="submit" class="pager-btn" name="horarios_page" value="1">⏮ Inicio</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page > 1 %}{{ horarios_page-1 }}{% else %}{{ horarios_total_pages }}{% endif %}">⏪ Anterior</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="{% if horarios_page < horarios_total_pages %}{{ horarios_page+1 }}{% else %}1{% endif %}">Siguiente ⏩</button>
+                            <button type="submit" class="pager-btn" name="horarios_page" value="1">⏯️ Inicio</button>
                         </form>
                     </div>
                 </div>
@@ -528,9 +528,9 @@
                 <div class="pager">
                     <form method="get">
                         <input type="hidden" name="horarios_page" value="{{ horarios_page }}">
-                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}">◀ Anterior</button>
-                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}">Siguiente ▶</button>
-                        <button type="submit" class="pager-btn" name="validados_page" value="1">⏮ Inicio</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page > 1 %}{{ validados_page-1 }}{% else %}{{ validados_total_pages }}{% endif %}">⏪ Anterior</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="{% if validados_page < validados_total_pages %}{{ validados_page+1 }}{% else %}1{% endif %}">Siguiente ⏩</button>
+                        <button type="submit" class="pager-btn" name="validados_page" value="1">⏯️ Inicio</button>
                     </form>
                 </div>
             </div>
