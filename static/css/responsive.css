@@ -178,6 +178,45 @@ table,
     .month-nav {
         align-items: stretch !important;
     }
+}
+
+/* ══════════════════════════════════════════
+   MÓVIL portrait estrecho (< 480px)
+   El nav envuelve en 2 filas para que
+   todos los enlaces sean visibles
+   ══════════════════════════════════════════ */
+@media (max-width: 479px) {
+    .sidebar {
+        max-height: none !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+    }
+
+    .sb-nav {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        padding: 3px 4px !important;
+        gap: 1px !important;
+    }
+
+    .sb-nav a,
+    .sb-nav a.exit {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        padding: 6px 7px !important;
+        font-size: 0.73rem !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    .sb-nav a.exit {
+        margin-left: 0 !important;
+    }
+}
+
+/* Retomar reglas móvil que siguen tras el bloque anterior */
+@media (max-width: 768px) {
 
     .filter-bar > *,
     .actions > * {
