@@ -400,56 +400,71 @@ table,
    ══════════════════════════════════════════ */
 @media (min-width: 769px) and (max-width: 1100px) {
 
-    /* Cabecera de sidebar más compacta */
-    .sb-brand {
-        padding: 10px 16px !important;
-        font-size: 0.88rem !important;
+    /* ── Sidebar como barra superior compacta ── */
+    .sidebar {
+        flex-direction: row !important;
+        align-items: center !important;
+        height: auto !important;
+        min-height: 0 !important;
+        position: static !important;
+        overflow-y: visible !important;
+        flex-wrap: wrap !important;
     }
 
-    /* Nav horizontal compacta */
+    .sb-brand {
+        padding: 8px 14px !important;
+        font-size: 0.8rem !important;
+        border-bottom: 0 !important;
+        border-right: 2px solid var(--sb-accent) !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+
     .sb-nav {
-        gap: 4px !important;
-        padding: 8px 10px !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+        padding: 4px 8px !important;
+        flex: 1 !important;
+        align-items: center !important;
     }
 
     .sb-nav a {
         flex: 0 1 auto !important;
-        padding: 7px 11px !important;
-        font-size: 0.82rem !important;
-        gap: 6px !important;
+        padding: 6px 10px !important;
+        font-size: 0.8rem !important;
+        gap: 5px !important;
+        white-space: nowrap !important;
     }
 
     .sb-nav a.exit {
         margin-top: 0 !important;
+        margin-left: auto !important;
     }
 
-    /* Separador no tiene sentido en horizontal */
     .sb-divider {
         display: none !important;
     }
 
-    /* Contenido con buen padding para tablet */
+    /* ── Contenido ── */
     .content {
-        padding: 16px 18px !important;
+        padding: 14px 16px !important;
     }
 
-    /* Cabecera de página */
     .page-header h1 {
-        font-size: 1.25rem !important;
+        font-size: 1.2rem !important;
     }
 
-    /* Filter bar: cada campo ocupa al menos 180px */
     .filter-bar {
         flex-wrap: wrap !important;
         gap: 8px !important;
     }
 
     .filter-bar > * {
-        flex: 1 1 180px !important;
+        flex: 1 1 160px !important;
         min-width: 0 !important;
     }
 
-    /* Acciones: wrap limpio */
     .actions {
         flex-wrap: wrap !important;
         gap: 8px !important;
@@ -459,64 +474,75 @@ table,
         flex: 1 1 auto !important;
     }
 
-    /* CORRIGE el bug de overflow-x: hidden que recorta tablas
-       en el rango 900px – 1100px */
+    /* ── Tablas: overflow scroll y layout auto ── */
     .table-wrap,
     .history-table-wrap {
         overflow-x: auto !important;
     }
 
-    /* Reducir anchos fijos de columnas para que quepan en tablet */
-    .report-table .col-reason,
-    .validation-table .col-reason {
-        min-width: 130px !important;
-        width: 130px !important;
+    /* Quitar table-layout fixed para que las columnas
+       se distribuyan naturalmente en tablet */
+    .report-table,
+    .validation-table {
+        table-layout: auto !important;
+        min-width: 0 !important;
     }
 
-    .report-table .col-employee,
-    .validation-table .col-employee {
-        min-width: 130px !important;
-        width: auto !important;
-    }
-
+    /* Columnas: quitar anchos fijos rígidos */
     .report-table .col-date,
     .validation-table .col-date {
-        width: 90px !important;
-        max-width: 90px !important;
+        width: auto !important;
+        max-width: none !important;
+        white-space: nowrap !important;
     }
 
     .report-table .col-time,
     .validation-table .col-time {
-        width: 68px !important;
-        max-width: 68px !important;
+        width: auto !important;
+        max-width: none !important;
+        white-space: nowrap !important;
     }
 
     .report-table .col-hours,
     .validation-table .col-hours {
-        width: 72px !important;
-        max-width: 72px !important;
+        width: auto !important;
+        max-width: none !important;
+        white-space: nowrap !important;
     }
 
     .report-table .col-status,
     .validation-table .col-status {
-        width: 90px !important;
-        max-width: 90px !important;
+        width: auto !important;
+        max-width: none !important;
+        white-space: nowrap !important;
     }
 
-    /* Celdas con fuente ligeramente más pequeña */
+    .report-table .col-employee,
+    .validation-table .col-employee {
+        min-width: 100px !important;
+        width: auto !important;
+        white-space: normal !important;
+        word-break: break-word !important;
+    }
+
+    .report-table .col-reason,
+    .validation-table .col-reason {
+        min-width: 100px !important;
+        width: auto !important;
+        white-space: normal !important;
+    }
+
     th, td {
-        padding: 6px 8px !important;
-        font-size: 0.8rem !important;
+        padding: 5px 7px !important;
+        font-size: 0.78rem !important;
     }
 
-    /* Panel y tarjetas con menos padding */
     .panel,
     .card,
     .form-card {
         padding: 14px !important;
     }
 
-    /* Paginador bien posicionado */
     .pager,
     .pager form {
         justify-content: flex-end !important;
