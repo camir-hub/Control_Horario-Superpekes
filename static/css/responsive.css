@@ -392,3 +392,180 @@ table,
         font-size: 1.25rem !important;
     }
 }
+
+/* ══════════════════════════════════════════
+   TABLET — Portrait (769px – 1100px)
+   Cubre iPad Mini, iPad Air, iPad Pro 11
+   en orientación vertical
+   ══════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1100px) {
+
+    /* Cabecera de sidebar más compacta */
+    .sb-brand {
+        padding: 10px 16px !important;
+        font-size: 0.88rem !important;
+    }
+
+    /* Nav horizontal compacta */
+    .sb-nav {
+        gap: 4px !important;
+        padding: 8px 10px !important;
+    }
+
+    .sb-nav a {
+        flex: 0 1 auto !important;
+        padding: 7px 11px !important;
+        font-size: 0.82rem !important;
+        gap: 6px !important;
+    }
+
+    .sb-nav a.exit {
+        margin-top: 0 !important;
+    }
+
+    /* Separador no tiene sentido en horizontal */
+    .sb-divider {
+        display: none !important;
+    }
+
+    /* Contenido con buen padding para tablet */
+    .content {
+        padding: 16px 18px !important;
+    }
+
+    /* Cabecera de página */
+    .page-header h1 {
+        font-size: 1.25rem !important;
+    }
+
+    /* Filter bar: cada campo ocupa al menos 180px */
+    .filter-bar {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .filter-bar > * {
+        flex: 1 1 180px !important;
+        min-width: 0 !important;
+    }
+
+    /* Acciones: wrap limpio */
+    .actions {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .actions > * {
+        flex: 1 1 auto !important;
+    }
+
+    /* CORRIGE el bug de overflow-x: hidden que recorta tablas
+       en el rango 900px – 1100px */
+    .table-wrap,
+    .history-table-wrap {
+        overflow-x: auto !important;
+    }
+
+    /* Reducir anchos fijos de columnas para que quepan en tablet */
+    .report-table .col-reason,
+    .validation-table .col-reason {
+        min-width: 130px !important;
+        width: 130px !important;
+    }
+
+    .report-table .col-employee,
+    .validation-table .col-employee {
+        min-width: 130px !important;
+        width: auto !important;
+    }
+
+    .report-table .col-date,
+    .validation-table .col-date {
+        width: 90px !important;
+        max-width: 90px !important;
+    }
+
+    .report-table .col-time,
+    .validation-table .col-time {
+        width: 68px !important;
+        max-width: 68px !important;
+    }
+
+    .report-table .col-hours,
+    .validation-table .col-hours {
+        width: 72px !important;
+        max-width: 72px !important;
+    }
+
+    .report-table .col-status,
+    .validation-table .col-status {
+        width: 90px !important;
+        max-width: 90px !important;
+    }
+
+    /* Celdas con fuente ligeramente más pequeña */
+    th, td {
+        padding: 6px 8px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Panel y tarjetas con menos padding */
+    .panel,
+    .card,
+    .form-card {
+        padding: 14px !important;
+    }
+
+    /* Paginador bien posicionado */
+    .pager,
+    .pager form {
+        justify-content: flex-end !important;
+    }
+}
+
+/* ══════════════════════════════════════════
+   TABLET — Landscape (1101px – 1366px)
+   Cubre iPad Air, iPad Pro en horizontal,
+   e incluso iPad Pro 12.9" portrait (1024px
+   que ya entra en el bloque anterior)
+   ══════════════════════════════════════════ */
+@media (min-width: 1101px) and (max-width: 1366px) {
+
+    /* Sidebar algo más estrecha para dar más espacio al contenido */
+    .layout {
+        grid-template-columns: 210px 1fr !important;
+    }
+
+    .sb-brand {
+        padding: 16px 14px !important;
+        font-size: 0.88rem !important;
+    }
+
+    .sb-nav a {
+        padding: 9px 10px !important;
+        font-size: 0.84rem !important;
+    }
+
+    .content {
+        padding: 20px 22px !important;
+    }
+
+    /* Tablas: columnas ligeramente reducidas */
+    .report-table .col-reason,
+    .validation-table .col-reason {
+        min-width: 180px !important;
+        width: 180px !important;
+    }
+
+    .report-table .col-employee,
+    .validation-table .col-employee {
+        min-width: 160px !important;
+    }
+
+    /* Grids de métricas en 2 columnas */
+    .metrics,
+    .section-cards,
+    .views {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+}
