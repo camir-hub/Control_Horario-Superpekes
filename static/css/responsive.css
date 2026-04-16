@@ -400,38 +400,45 @@ table,
    ══════════════════════════════════════════ */
 @media (min-width: 769px) and (max-width: 1100px) {
 
-    /* ── Sidebar como barra superior compacta ── */
+    /* ── Sidebar como barra horizontal fina ── */
     .sidebar {
         flex-direction: row !important;
-        align-items: center !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
         height: auto !important;
         min-height: 0 !important;
         position: static !important;
-        overflow-y: visible !important;
-        flex-wrap: wrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
     }
 
+    /* Ocultar el texto del brand para no ocupar línea propia */
     .sb-brand {
-        padding: 8px 14px !important;
-        font-size: 0.8rem !important;
+        padding: 0 8px !important;
+        font-size: 0 !important;
         border-bottom: 0 !important;
-        border-right: 2px solid var(--sb-accent) !important;
+        border-right: 3px solid var(--sb-accent) !important;
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        min-width: 12px !important;
+        max-width: 12px !important;
     }
 
     .sb-nav {
         flex-direction: row !important;
-        flex-wrap: wrap !important;
+        flex-wrap: nowrap !important;
         gap: 2px !important;
-        padding: 4px 8px !important;
+        padding: 4px 6px !important;
         flex: 1 !important;
         align-items: center !important;
+        overflow-x: auto !important;
     }
 
     .sb-nav a {
-        flex: 0 1 auto !important;
-        padding: 6px 10px !important;
+        flex: 0 0 auto !important;
+        padding: 7px 10px !important;
         font-size: 0.8rem !important;
         gap: 5px !important;
         white-space: nowrap !important;
