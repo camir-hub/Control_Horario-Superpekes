@@ -131,4 +131,26 @@ INSERT INTO company_profile (id)
 VALUES (1)
 ON CONFLICT (id) DO NOTHING;
 
+-- Administrador principal creado en pgAdmin
+INSERT INTO users (username, password_hash, rol, first_name, last_name, tax_id, affiliation_number, email, phone, employment_type, address, postal_code, city, province, country, active)
+VALUES (
+    'Administrador',
+    'scrypt:32768:8:1$gj62ShERkDdpTemz$aa5482669a1822995489e5a7db4095cf40615794bca282bc4973c151408333c403a05f5ed3c2c3337a0991b3fa31ed061e4ac8a373f3cf0352aa27eb741342c4',
+    'admin',
+    'Diana',
+    'Valcarce Alvarez',
+    'N/A',
+    'N/A',
+    'dianavalcarcealvarez@gmail.com',
+    '679911494',
+    'Interno',
+    'Santa Cruz de Bezana',
+    '39100',
+    'Santander',
+    'Cantabria',
+    'España',
+    TRUE
+)
+ON CONFLICT (username) DO NOTHING;
+
 COMMIT;
