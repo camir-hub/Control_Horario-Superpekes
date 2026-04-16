@@ -1312,11 +1312,6 @@ def update_entry(entry_id):
 
 
     previous = serialize_entry(entry)
-    # Guardar valores previos para comparar cambios
-    prev_pause_start = entry.pause_start
-    prev_pause_end = entry.pause_end
-    prev_overtime_start = entry.overtime_start
-    prev_overtime_end = entry.overtime_end
 
     entry.check_in = normalized["check_in"]
     entry.meal_start = normalized["meal_start"]
@@ -1868,7 +1863,6 @@ def report_excel():
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Parte de Tiempo"
-    get_company_profile()
 
     if selected_user:
         full_name = f"{(selected_user.first_name or '').strip()} {(selected_user.last_name or '').strip()}".strip()
@@ -2084,9 +2078,6 @@ def report_excel():
         block_cell.border = Border(
             left=box_side, right=box_side, top=box_side, bottom=box_side,
         )
-        # Agregar el valor resaltado en la segunda línea
-        value_cell = sheet.cell(row=label_row, column=col)
-        # openpyxl no soporta rich text, pero podemos poner todo en negrita o cambiar color
         block_cell.value = f"{label}\n{value}"
         block_cell.font = header_font
         # Celda inferior (summary_row): borde bottom + left + right
@@ -2512,13 +2503,6 @@ def api_login():
             },
         }
     )
-
-
-@app.get("/api/me")
-## API eliminada: decorador removido
-def api_me():
-    user = request.api_user
-    return jsonify({"id": user.id, "username": user.username, "rol": user.rol, "active": user.active})
 
 
 @app.get("/api/users")

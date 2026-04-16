@@ -182,14 +182,10 @@ table,
     .month-nav {
         align-items: stretch !important;
     }
-}
-
-/* Retomar reglas móvil que siguen tras el bloque anterior */
-@media (max-width: 768px) {
 
     .filter-bar > *,
     .actions > * {
-        flex: 1 1 100%;
+        flex: 1 1 100% !important;
     }
 
     .month-nav > h2 {
@@ -204,7 +200,7 @@ table,
     .btn-ghost,
     .btn-filter,
     .actions a {
-        min-height: 44px;
+        min-height: 44px !important;
     }
 
     .form-section {
@@ -595,11 +591,6 @@ table,
     .card,
     .form-card {
         padding: 14px !important;
-    }
-
-    .pager,
-    .pager form {
-        justify-content: flex-end !important;
     }
 }
 
