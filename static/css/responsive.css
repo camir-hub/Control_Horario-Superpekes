@@ -422,9 +422,10 @@ table,
 }
 
 /* ══════════════════════════════════════════
-   TABLET — Portrait (769px – 1100px)
+   TABLET (600px – 1100px)
    Cubre iPad Mini, iPad Air, iPad Pro 11
-   en orientación vertical
+   en vertical y horizontal, y pantallas
+   intermedias (phablets grandes, etc.)
    ══════════════════════════════════════════ */
 @media (min-width: 600px) and (max-width: 1100px) {
 
