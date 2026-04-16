@@ -122,12 +122,12 @@ table,
     .sidebar {
         position: static !important;
         height: auto !important;
-        max-height: 52px !important;
+        max-height: none !important;
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         align-items: center !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
     }
 
     .sb-brand {
@@ -138,31 +138,32 @@ table,
         flex-shrink: 0 !important;
         min-width: 12px !important;
         max-width: 12px !important;
+        align-self: stretch !important;
     }
 
     .sb-nav {
         flex-direction: row !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         padding: 4px 6px !important;
-        gap: 2px !important;
-        overflow-x: auto !important;
+        gap: 3px !important;
         flex: 1 !important;
         align-items: center !important;
     }
 
     .sb-nav a,
     .sb-nav a.exit {
-        flex: 0 0 auto !important;
+        flex: 1 1 0 !important;
         white-space: nowrap !important;
-        padding: 7px 10px !important;
-        font-size: 0.8rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
+        padding: 8px 6px !important;
+        font-size: 0.82rem !important;
+        justify-content: center !important;
+        text-align: center !important;
+        border-radius: 6px !important;
     }
 
     .sb-nav a.exit {
         margin-top: 0 !important;
-        margin-left: auto !important;
+        margin-left: 0 !important;
     }
 
     .sb-divider {
@@ -177,42 +178,6 @@ table,
     .actions,
     .month-nav {
         align-items: stretch !important;
-    }
-}
-
-/* ══════════════════════════════════════════
-   MÓVIL portrait estrecho (< 480px)
-   El nav envuelve en 2 filas para que
-   todos los enlaces sean visibles
-   ══════════════════════════════════════════ */
-@media (max-width: 479px) {
-    .sidebar {
-        max-height: none !important;
-        overflow-x: visible !important;
-        overflow-y: visible !important;
-    }
-
-    .sb-nav {
-        flex-wrap: wrap !important;
-        overflow-x: visible !important;
-        padding: 3px 4px !important;
-        gap: 1px !important;
-        justify-content: stretch !important;
-    }
-
-    .sb-nav a,
-    .sb-nav a.exit {
-        flex: 1 1 0 !important;
-        min-width: 0 !important;
-        padding: 6px 4px !important;
-        font-size: 0.73rem !important;
-        white-space: nowrap !important;
-        justify-content: center !important;
-        text-align: center !important;
-    }
-
-    .sb-nav a.exit {
-        margin-left: 0 !important;
     }
 }
 
