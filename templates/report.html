@@ -427,9 +427,12 @@
 
         @media (max-width: 1100px) {
             .layout { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-            .sidebar { position: static; height: auto; max-height: 52px; align-self: start; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
-            .sb-nav { flex-direction: row; flex-wrap: nowrap; padding: 4px 6px; }
-            .sb-nav a.exit { margin-top: 0; justify-content: flex-start; text-align: left; }
+            .sidebar { position: static; height: auto; max-height: 52px; align-self: start; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; align-items: center; }
+            .sb-brand { font-size: 0; padding: 0 8px; border-bottom: 0; border-right: 3px solid var(--sb-accent); flex-shrink: 0; min-width: 12px; max-width: 12px; }
+            .sb-nav { flex-direction: row; flex-wrap: nowrap; padding: 4px 6px; gap: 2px; overflow-x: auto; flex: 1; align-items: center; }
+            .sb-nav a { flex: 0 0 auto; white-space: nowrap; }
+            .sb-nav a.exit { margin-top: 0; margin-left: auto; }
+            .sb-divider { display: none; }
             .content { padding: 16px; }
             .table-wrap { overflow-x: auto; }
             .report-table { table-layout: auto !important; min-width: 0 !important; }
