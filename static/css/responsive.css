@@ -123,9 +123,9 @@ table,
         position: static !important;
         height: auto !important;
         max-height: none !important;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        align-items: center !important;
+        flex-direction: column !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
         overflow-x: visible !important;
         overflow-y: visible !important;
     }
@@ -133,32 +133,35 @@ table,
     .sb-brand {
         padding: 0 8px !important;
         font-size: 0 !important;
-        border-bottom: 0 !important;
-        border-right: 3px solid var(--sb-accent) !important;
+        border-bottom: 3px solid var(--sb-accent) !important;
+        border-right: 0 !important;
         flex-shrink: 0 !important;
-        min-width: 12px !important;
-        max-width: 12px !important;
-        align-self: stretch !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 6px !important;
+        display: block !important;
     }
 
     .sb-nav {
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        padding: 4px 6px !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
         gap: 3px !important;
-        flex: 1 !important;
-        align-items: center !important;
+        padding: 4px 6px !important;
+        flex: none !important;
+        align-items: stretch !important;
     }
 
     .sb-nav a,
     .sb-nav a.exit {
-        flex: 1 1 0 !important;
+        flex: none !important;
         white-space: nowrap !important;
-        padding: 8px 6px !important;
+        padding: 9px 4px !important;
         font-size: 0.82rem !important;
         justify-content: center !important;
         text-align: center !important;
         border-radius: 6px !important;
+        display: flex !important;
+        align-items: center !important;
     }
 
     .sb-nav a.exit {
