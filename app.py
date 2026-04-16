@@ -2925,7 +2925,7 @@ def admin_enable_editable_day():
 with app.app_context():
     db.create_all()
     ensure_monthly_signature_schema()
-    ensure_default_admin()
+    # ensure_default_admin()  # Desactivado: el admin ya existe en la BD
 
 
 if __name__ == "__main__":
