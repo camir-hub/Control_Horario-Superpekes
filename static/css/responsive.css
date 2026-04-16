@@ -400,13 +400,23 @@ table,
    ══════════════════════════════════════════ */
 @media (min-width: 769px) and (max-width: 1100px) {
 
+    /* El grid pasa a 1 columna, 2 filas:
+       primera fila (sidebar) = auto, segunda (content) = resto */
+    .layout {
+        grid-template-columns: 1fr !important;
+        grid-template-rows: auto 1fr !important;
+        min-height: 100vh !important;
+    }
+
     /* ── Sidebar como barra horizontal fina ── */
     .sidebar {
         flex-direction: row !important;
         flex-wrap: nowrap !important;
-        align-items: stretch !important;
+        align-items: center !important;
+        align-self: start !important;
         height: auto !important;
         min-height: 0 !important;
+        max-height: 52px !important;
         position: static !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
